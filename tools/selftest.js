@@ -134,6 +134,16 @@ module.exports = function selftest(win, dir) {
       p = await js(`(async () => { const b = await T.P.encode(T.P.app.doc, 'bmp'); const back = await T.P.openBytes(b, 'test.bmp'); return T.px(30, 45); })()`);
       check('BMP lesen/schreiben', p[1] === 200 && p[3] === 255, JSON.stringify(p));
 
+      // 10b) Geöffnete Bilder starten im Ansehen-Modus (wie Cutline)
+      p = await js(`[T.P.app.viewMode, document.body.classList.contains('viewing'), getComputedStyle(document.getElementById('cats')).display]`);
+      check('Geöffnet = Ansehen-Modus', p[0] === true && p[1] === true && p[2] === 'none', JSON.stringify(p));
+      await shot('07-ansehen');
+      p = await js(`(() => { const before = T.px(1, 1); T.P.app.tools.id = 'brush'; T.drag([[1, 1], [6, 6]]); return [before, T.px(3, 3), T.P.app.doc.canUndo]; })()`);
+      check('Ansehen malt nicht', p[2] === false, JSON.stringify(p));
+      await js(`document.getElementById('q-mode').click(); 1`);
+      p = await js(`[T.P.app.viewMode, getComputedStyle(document.getElementById('cats')).display]`);
+      check('Knopf Bearbeiten', p[0] === false && p[1] !== 'none', JSON.stringify(p));
+
       // 11) Effekt
       await js(`T.P.app.tools.set('brush'); 1`);
       p = await js(`(async () => { const { EFFECTS } = {}; return 1; })()`);
@@ -145,9 +155,10 @@ module.exports = function selftest(win, dir) {
       await js(`T.P.newDoc(800, 520, 'white'); T.P.app.tools.set('brush'); Object.assign(T.P.app.opts.brush, { size: 30, hardness: 30, style: 'round' }); T.P.app.setColor('primary', { r: 139, g: 92, b: 246, a: 255 }); T.drag([[100, 100], [200, 160], [320, 140], [420, 220], [560, 180], [680, 300]]); Object.assign(T.P.app.opts.brush, { style: 'spray', size: 60 }); T.P.app.setColor('primary', { r: 236, g: 72, b: 153, a: 255 }); T.drag([[120, 380], [260, 420], [400, 380]]); T.P.app.tools.set('shapes'); Object.assign(T.P.app.opts.shapes, { type: 'star', width: 6, pixel: false, fill: 'secondary' }); T.P.app.setColor('secondary', { r: 250, g: 204, b: 21, a: 255 }); T.P.app.setColor('primary', { r: 30, g: 30, b: 30, a: 255 }); T.drag([[520, 320], [600, 400], [700, 480]]); 1`);
       await shot('04-malen-form');
       await js(`T.P.app.tools.applyFloat(); 1`);
-      await js(`document.querySelector('.menubar-item:nth-child(5)').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); 1`);
-      await shot('05-menu-effekte');
-      await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 1`);
+      await js(`document.querySelector('[data-cat=effects]').click(); 1`);
+      await shot('05-effekte');
+      await js(`document.querySelector('[data-cat=brushes]').click(); 1`);
+      await shot('05b-pinsel');
       // helles Design
       await js(`T.P.app.settings.mode = 'light'; T.P.app.applyLook(); 1`);
       await shot('06-hell');

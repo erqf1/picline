@@ -27,8 +27,8 @@ module.exports = function siteshots(win, dir) {
         app.doc = null;
         Object.assign(app.settings, { language: '${lang}', mode: 'dark', accent: '#8b5cf6', gridEvery: 0, tile: false, recentColors: ['#5D3A1A', '#8B5A2B', '#C8C8C8', '#FFFFFF', '#3AB3DA', '#169C9C'] });
         app.applyLook(); app.rebuild(); app.setView({ grid: true });
-        // 1) Minecraft-Schwert 16x16 als Pixelgrafik
-        const d = P.newDoc(16, 16, 'transparent', '${lang === 'de' ? 'diamant_schwert' : 'diamond_sword'}.png');
+        // 1) Schwert 16x16 als Pixelgrafik
+        const d = P.newDoc(16, 16, 'transparent', '${lang === 'de' ? 'schwert' : 'sword'}.png');
         const g = d.layers[0].ctx;
         const px = (x, y, c) => { g.fillStyle = c; g.fillRect(x, y, 1, 1); };
         const blade = ['#0e3f3a', '#1aa79b', '#33ebcb', '#a4fde8'];
@@ -38,7 +38,7 @@ module.exports = function siteshots(win, dir) {
         for (const [x, y] of [[2, 9], [3, 10], [6, 13], [7, 14], [4, 10], [5, 11]]) px(x, y, '#2b2b2b');
         d.touch(d.layers[0]);
         d.markSaved();
-        app.settings.palette = 'minecraft';
+        app.settings.palette = 'pico8';
         app.tools.set('pixel'); app.opts.pixel.size = 1;
         app.setColor('primary', { r: 51, g: 235, b: 203, a: 255 }, { remember: false });
         app.view.fit(); app.setView({ gridEvery: 8 });
@@ -98,14 +98,15 @@ module.exports = function siteshots(win, dir) {
       await shot(`layers-${lang}`);
 
       // 4) Effekt-Dialog
-      await js(`(() => { const a = window.__picline.app; a.tools.applyFloat(); a.layerOps.select(0); document.querySelector('.menubar-item:nth-child(5)').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); return 1; })()`);
-      await wait(200);
-      await js(`(() => { const items = [...document.querySelectorAll('.menu-item')]; items[4].click(); return 1; })()`);
+      await js(`(() => { const a = window.__picline.app; a.tools.applyFloat(); a.layerOps.select(0); document.querySelector('[data-cat=effects]').click(); document.querySelectorAll('.tile')[1].click(); return 1; })()`);
       await wait(300);
       await js(`(() => { const r = document.querySelector('.effect-dialog input[type=range]'); r.value = 120; r.dispatchEvent(new Event('input', { bubbles: true })); return 1; })()`);
       await shot(`effects-${lang}`);
       await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 1`);
       await wait(200);
+      // 5) Geöffnetes Bild im Ansehen-Modus
+      await js(`(async () => { const P = window.__picline, app = P.app; const bytes = await P.encode(app.doc, 'png'); await P.openBytes(bytes, '${lang === 'de' ? 'gute-nacht' : 'good-night'}.png', 'C:/Bilder/x.png'); app.view.fit(); return 1; })()`);
+      await shot(`view-${lang}`);
     }
     console.log('Bilder in', dir);
     require('electron').app.exit(0);

@@ -1,8 +1,8 @@
 {
   "name": "picline",
   "productName": "Picline",
-  "version": "1.0.0",
-  "description": "Bildeditor wie Paint 3D: Pinsel, Pixelstift, Formen, Text, Ebenen und Zoom bis auf einzelne Pixel – auch für Minecraft-Texturen.",
+  "version": "1.0.1",
+  "description": "Bildeditor für Zeichnungen, Fotos und Pixelgrafik: Pinsel, Pixelstift, Formen, Text, Ebenen und Zoom bis auf einzelne Pixel.",
   "main": "src/main.js",
   "private": true,
   "desktopName": "win.mert.Picline",
@@ -115,7 +115,7 @@
       ],
       "desktop": {
         "entry": {
-          "Keywords": "paint;image;editor;pixel;drawing;minecraft;texture;"
+          "Keywords": "paint;image;editor;pixel;drawing;pixelart;"
         }
       },
       "target": [

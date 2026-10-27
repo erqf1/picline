@@ -26,7 +26,7 @@ let menuCloseHandler = null;
 export function closeMenus() {
   for (const m of openMenus) m.remove();
   openMenus = [];
-  document.querySelectorAll('.menubar-item.open, .icon-btn.open').forEach((b) => b.classList.remove('open'));
+  document.querySelectorAll('.menubar-item.open, .icon-btn.open, .menu-btn.open').forEach((b) => b.classList.remove('open'));
   if (menuCloseHandler) {
     const f = menuCloseHandler;
     menuCloseHandler = null;

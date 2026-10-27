@@ -1,6 +1,6 @@
 # Picline
 
-Bildeditor im Stil von Paint 3D für Windows, Linux, macOS und den Browser: Pinsel, Pixelstift, Formen, Text, Ebenen und Effekte – mit Zoom bis aufs einzelne Pixel, auch für Minecraft-Texturen und Skins.
+Bildeditor für Zeichnungen, Fotos und Pixelgrafik – für Windows, Linux, macOS und den Browser: Pinsel, Pixelstift, Formen, Text, Ebenen und Effekte – mit Zoom bis aufs einzelne Pixel.
 
 **[Releases](https://github.com/erqf1/picline/releases)** · **[Im Browser öffnen](https://mert.win/pic/app/)** · Lizenz: [MIT](LICENSE)
 
@@ -34,7 +34,8 @@ codesign --force --deep --sign - Picline.app   # nötig auf Apple Silicon
 
 ## Was drin ist
 
-- **Pinsel wie in Paint 3D:** rund (weich/hart), Marker, Kalligrafie, Spraydose, Bleistift – mit Stiftdruck.
+- **Erst ansehen, dann bearbeiten** (wie Cutline): Geöffnete Bilder erscheinen ohne Werkzeuge – ziehen, zoomen, mit ←/→ durch den Ordner blättern. „Bearbeiten“ blendet Werkzeuge und Panels ein.
+- **Pinsel für jeden Stil:** rund (weich/hart), Marker, Kalligrafie, Spraydose, Bleistift – mit Stiftdruck.
 - **Pixelstift** für Pixelgrafik: ganze Pixel, eckig oder rund, „Pixel-perfekt“ ohne Treppen-Ecken, **Spiegelmalen** (links/rechts, oben/unten, vierfach).
 - **Radierer** (weich, hart, pixelgenau), **Füllen** mit Toleranz, **Pipette** (auch Alt+Klick).
 - **Formen:** Linie, Pfeil, Rechteck, abgerundet, Ellipse, Dreieck, Stern, Sechseck, Herz, Sprechblase – danach noch verschieb-, skalier- und drehbar, auch pixelgenau.
@@ -42,7 +43,7 @@ codesign --force --deep --sign - Picline.app   # nötig auf Apple Silicon
 - **Ebenen** mit Deckkraft, 16 Mischmodi, Sperren, Sortieren per Ziehen, Zusammenführen.
 - **Auswahl** (Rechteck/Ellipse), Inhalt verschieben/skalieren/drehen, Screenshots einfügen, **Zuschneiden** mit Griffen und Seitenverhältnissen, Bild-/Leinwandgröße (mit „scharfen Pixeln“), drehen, spiegeln.
 - **Effekte mit Live-Vorschau:** Helligkeit/Kontrast, Farbton/Sättigung, Graustufen, Umkehren, Sepia, Weichzeichnen, Schärfen, Rauschen, Verpixeln, Tontrennung, Schwarzweiß, Umriss.
-- **Zoom 1 % bis 102 400 %**, Pixelraster, Raster alle N Pixel, Kachelvorschau für nahtlose Texturen.
+- **Zoom 1 % bis 102 400 %**, Pixelraster, Raster alle N Pixel, Kachelvorschau für nahtlose Muster.
 - **Farben:** Farbfeld mit Deckkraft, Hex/RGB, Paletten (Standard, Minecraft-Farbstoffe, Pastell, Grautöne, Game Boy, PICO-8), zuletzt benutzte Farben.
 - **Dateien:** öffnet PNG, JPG, WebP, GIF, BMP, ICO, AVIF, SVG; speichert PNG, JPG, WebP, BMP, ICO (alle Größen) und das Projektformat `.picline` (behält Ebenen).
 - **12 Sprachen**, hell/dunkel mit eigener Akzentfarbe, Updates im Hintergrund.

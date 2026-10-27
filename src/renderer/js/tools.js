@@ -10,7 +10,7 @@ export const TOOLS = ['select', 'move', 'brush', 'pixel', 'eraser', 'fill', 'pic
 export const TOOL_KEYS = { select: 'M', move: 'V', brush: 'B', pixel: 'P', eraser: 'E', fill: 'G', picker: 'I', shapes: 'U', text: 'T', crop: 'C', hand: 'H', zoom: 'Z' };
 export const DEFAULT_OPTS = {
   brush: { style: 'round', size: 12, opacity: 100, hardness: 70, pressure: true },
-  pixel: { size: 1, opacity: 100, round: false, perfect: true },
+  pixel: { size: 1, perfect: true },
   eraser: { mode: 'soft', size: 24, opacity: 100, hardness: 60 },
   fill: { tolerance: 8, contiguous: true, sampleAll: false },
   picker: { sampleAll: true, back: true, avg: 1 },
@@ -51,7 +51,7 @@ export class Tools {
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('wheel', (e) => this.wheel(e), { passive: false });
     c.addEventListener('dblclick', (e) => {
-      if (this.id === 'hand') this.view.fit();
+      if (this.id === 'hand' || this.app.viewMode) this.view.fit();
       void e;
     });
     this.view.overlays.add((g, v) => this.overlay(g, v));
@@ -142,7 +142,9 @@ export class Tools {
     this.view.canvas.setPointerCapture(e.pointerId);
     const p = this.point(e);
     const right = e.button === 2;
-    if (e.button === 1 || this.space || this.id === 'hand') {
+    // Ansehen-Modus (wie Cutline): nur schauen - Ziehen verschiebt, nichts wird bemalt
+    if (this.app.viewMode && e.button === 2) return;
+    if (e.button === 1 || this.space || this.id === 'hand' || this.app.viewMode) {
       this.drag = { type: 'pan', x: p.sx, y: p.sy };
       this.view.canvas.style.cursor = 'grabbing';
       return;
@@ -180,7 +182,7 @@ export class Tools {
     const d = this.drag;
     if (!d) {
       this.updateCursor(p);
-      if (PAINT.has(this.id) || this.id === 'fill' || this.id === 'picker' || this.id === 'shapes') this.view.render();
+      if (!this.app.viewMode && (PAINT.has(this.id) || this.id === 'fill' || this.id === 'picker' || this.id === 'shapes')) this.view.render();
       return;
     }
     if (d.type === 'pan') {
@@ -277,7 +279,7 @@ export class Tools {
   updateCursor(p = this.hover) {
     const c = this.view.canvas;
     if (this.drag?.type === 'pan') return;
-    if (this.space || this.id === 'hand') {
+    if (this.space || this.id === 'hand' || this.app.viewMode) {
       c.style.cursor = 'grab';
       return;
     }
@@ -314,7 +316,7 @@ export class Tools {
     const o = this.o;
     const color = right ? app.colors.secondary : app.colors.primary;
     const mirror = app.opts.mirror;
-    if (this.id === 'pixel') return { kind: 'pixel', size: o.size, opacity: o.opacity / 100, color, round: o.round, perfect: o.perfect, mirror };
+    if (this.id === 'pixel') return { kind: 'pixel', size: o.size, opacity: 1, color: { ...color, a: 255 }, round: false, perfect: o.perfect, mirror };
     if (this.id === 'eraser') return { kind: 'erase', size: o.size, opacity: o.opacity / 100, hardness: o.mode === 'hard' ? 1 : o.hardness / 100, pixelErase: o.mode === 'pixel', color, mirror };
     return { kind: 'brush', style: o.style, size: o.size, opacity: o.opacity / 100, hardness: o.hardness / 100, pressure: o.pressure, color, mirror };
   }
@@ -865,7 +867,7 @@ export class Tools {
       g.strokeRect(Math.min(a.x, b.x) + 0.5, Math.min(a.y, b.y) + 0.5, Math.abs(b.x - a.x), Math.abs(b.y - a.y));
       g.setLineDash([]);
     }
-    if (this.hover && !this.space && !this.drag?.type?.startsWith('p') && (PAINT.has(this.id) || this.id === 'fill' || this.id === 'picker' || this.id === 'shapes')) this.drawCursor(g, v);
+    if (this.hover && !this.space && !this.app.viewMode && !this.drag?.type?.startsWith('p') && (PAINT.has(this.id) || this.id === 'fill' || this.id === 'picker' || this.id === 'shapes')) this.drawCursor(g, v);
   }
   drawCursor(g, v) {
     const p = this.hover;

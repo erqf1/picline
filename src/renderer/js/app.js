@@ -9,7 +9,7 @@ import { Doc, Layer, makeCanvas, cloneCanvas, clampRect, selectionPath } from '.
 import { decode, decodeCanvas, encode, canvasToPng, OPEN_EXT, SAVE_FORMATS, extOf, formatForExt } from './imageio.js';
 import { liftSelection } from './floating.js';
 import { parseHex, toHex } from './color.js';
-import { Side } from './panels.js';
+import { Side, CATS, catLabel } from './panels.js';
 import * as D from './dialogs.js';
 import { applyTheme } from './theme.js';
 
@@ -27,6 +27,7 @@ export const app = {
   settings: { ...DEFAULTS },
   docs: [],
   doc: null,
+  viewMode: false,
   opts: structuredClone(DEFAULT_OPTS),
   colors: { primary: { r: 17, g: 24, b: 39, a: 255 }, secondary: { r: 255, g: 255, b: 255, a: 255 } },
   view: null,
@@ -50,46 +51,38 @@ app.saveSettings = saveSettings;
 function buildShell() {
   $('#app').innerHTML = `
   <header id="topbar">
-    <nav id="menubar" class="menubar"></nav>
+    <button id="menu-btn" class="menu-btn menu-anchor"></button>
+    <nav id="cats" class="cats"></nav>
     <div class="quick" id="quick"></div>
   </header>
   <div class="tabrow"><div id="tabs" class="tabs"></div><button id="new-tab" class="icon-btn small"></button></div>
   <main id="workspace">
-    <nav id="toolbar" class="toolbar"></nav>
     <section id="stage" class="stage" tabindex="-1">
       <div id="welcome" class="welcome hidden"></div>
       <div id="drop-hint" class="drop-hint hidden"></div>
     </section>
     <aside id="side" class="side"></aside>
   </main>
-  <footer id="statusbar"></footer>`;
+  <footer id="statusbar"><div id="st-left" class="st-left"></div><div id="zoombar" class="zoombar"></div></footer>`;
 }
 
+/** Menü-Knopf (wie das "Menü" in Paint 3D): alle Befehle als Untermenüs */
 function buildMenubar() {
-  const bar = $('#menubar');
-  bar.innerHTML = '';
-  const menus = [
-    ['menuFile', fileMenu], ['menuEdit', editMenu], ['menuImage', imageMenu], ['menuLayer', layerMenu],
-    ['menuEffects', effectsMenu], ['menuView', viewMenu], ['menuHelp', helpMenu],
-  ];
-  for (const [key, build] of menus) {
-    const b = h('button', { class: 'menubar-item menu-anchor', text: t(key) });
-    const open = () => {
-      const r = b.getBoundingClientRect();
-      showMenu(build(), r.left, r.bottom + 2);
-      b.classList.add('open');
-    };
-    b.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      if (b.classList.contains('open')) closeMenus();
-      else open();
-    });
-    // bei offenem Menü nur drüberfahren wechselt (wie in normalen Programmen)
-    b.addEventListener('mouseenter', () => {
-      if (menuOpen() && bar.querySelector('.open') && !b.classList.contains('open')) open();
-    });
-    bar.append(b);
-  }
+  const b = $('#menu-btn');
+  b.innerHTML = `${icon('menu', 18)}<span>${t('menu')}</span>`;
+  b.onmousedown = (e) => {
+    e.preventDefault();
+    if (b.classList.contains('open')) return closeMenus();
+    const r = b.getBoundingClientRect();
+    showMenu([
+      { label: t('menuFile'), submenu: fileMenu }, { label: t('menuEdit'), submenu: editMenu }, { label: t('menuImage'), submenu: imageMenu },
+      { label: t('menuLayer'), submenu: layerMenu }, { label: t('menuEffects'), submenu: effectsMenu }, { label: t('menuView'), submenu: viewMenu },
+      '-', { label: t('newImage'), shortcut: k('Mod+N'), run: newImageDialog }, { label: t('open'), shortcut: k('Mod+O'), run: openDialog },
+      { label: t('save'), shortcut: k('Mod+S'), disabled: !hasDoc(), run: () => save(app.doc) }, { label: t('saveAs'), shortcut: k('Mod+Shift+S'), disabled: !hasDoc(), run: () => save(app.doc, { as: true }) },
+      '-', { label: t('settings'), shortcut: k('Mod+,'), run: () => D.settingsDialog(app) }, { label: t('menuHelp'), submenu: helpMenu },
+    ], r.left, r.bottom + 4);
+    b.classList.add('open');
+  };
 }
 const k = (spec) => keyLabel(spec, MAC());
 const hasDoc = () => !!app.doc;
@@ -189,7 +182,7 @@ function viewMenu() {
     { label: t('zoomFit'), shortcut: k('Mod+0'), disabled: !hasDoc(), run: () => v.fit() },
     { label: t('zoom100'), shortcut: k('Mod+1'), disabled: !hasDoc(), run: () => v.setZoom(1) },
     '-',
-    { label: t('pixelGrid'), shortcut: k("Mod+'"), checked: v.opts.grid, run: () => setView({ grid: !v.opts.grid }) },
+    { label: t('pixelGrid'), shortcut: k("Mod+'"), checked: s.grid !== false, run: () => setView({ grid: s.grid === false }) },
     { label: t('gridEvery'), submenu: () => [0, 4, 8, 16, 32, 64].map((n) => ({ label: n ? t('gridEveryN', { n }) : t('off'), checked: s.gridEvery === n, run: () => setView({ gridEvery: n }) })) },
     { label: t('tilePreview'), checked: s.tile, run: () => setView({ tile: !s.tile }) },
     { label: t('mirrorPaint'), submenu: () => ['none', 'x', 'y', 'xy'].map((m) => ({ label: t(`mirror_${m}`), checked: app.opts.mirror === m, run: () => setMirror(m) })) },
@@ -213,35 +206,55 @@ function helpMenu() {
 function buildQuick() {
   const q = $('#quick');
   q.innerHTML = '';
-  const btn = (id, ic, title, run) => {
-    const b = h('button', { class: 'icon-btn', id, title, html: icon(ic) });
+  const btn = (id, ic, title, run, label) => {
+    const b = h('button', { class: label ? 'quick-btn' : 'icon-btn', id, title, html: label ? `${icon(ic, 18)}<span>${label}</span>` : icon(ic) });
     b.addEventListener('click', run);
     q.append(b);
     return b;
   };
+  btn('q-prev', 'up', t('prevImage'), () => siblingImage(-1)).classList.add('view-only', 'rot-left');
+  btn('q-next', 'up', t('nextImage'), () => siblingImage(1)).classList.add('view-only', 'rot-right');
+  btn('q-paste', 'paste', `${t('paste')} (${k('Mod+V')})`, () => pasteImage(), t('paste'));
   btn('q-undo', 'undo', `${t('undo')} (${k('Mod+Z')})`, undo);
   btn('q-redo', 'redo', `${t('redo')} (${k(MAC() ? 'Mod+Shift+Z' : 'Mod+Y')})`, redo);
-  q.append(h('span', { class: 'qsep' }));
-  btn('q-zoomout', 'zoomOut', t('zoomOut'), () => app.view.zoomStep(-1));
-  const z = h('button', { class: 'zoom-btn menu-anchor', id: 'q-zoom', title: t('zoom') });
-  z.addEventListener('click', () => {
-    const r = z.getBoundingClientRect();
-    const list = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128].map((v) => ({ label: `${Math.round(v * 100)} %`, run: () => app.view.setZoom(v) }));
-    showMenu([{ label: t('zoomFit'), run: () => app.view.fit() }, '-', ...list], r.left, r.bottom + 2);
-  });
-  q.append(z);
-  btn('q-zoomin', 'zoom', t('zoomIn'), () => app.view.zoomStep(1));
-  btn('q-fit', 'fit', t('zoomFit'), () => app.view.fit());
-  q.append(h('span', { class: 'qsep' }));
-  btn('q-grid', 'grid', t('pixelGrid'), () => setView({ grid: !app.view.opts.grid }));
-  btn('q-mirror', 'mirror', t('mirrorPaint'), (e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    showMenu(['none', 'x', 'y', 'xy'].map((m) => ({ label: t(`mirror_${m}`), checked: app.opts.mirror === m, run: () => setMirror(m) })), r.left, r.bottom + 2);
-  });
-  btn('q-tile', 'tile', t('tilePreview'), () => setView({ tile: !app.settings.tile }));
-  q.append(h('span', { class: 'spacer' }));
+  const mode = h('button', { class: 'mode-btn', id: 'q-mode' });
+  mode.addEventListener('click', () => setMode(!app.viewMode));
+  q.append(mode);
   btn('q-side', 'palette', `${t('showPanel')} (Tab)`, toggleSide);
   btn('q-settings', 'settings', `${t('settings')} (${k('Mod+,')})`, () => D.settingsDialog(app));
+  refreshQuick();
+}
+/** Zoom-Leiste unten rechts (wie in Paint 3D) mit Raster, Spiegeln und Kachelvorschau */
+function buildZoomBar() {
+  const z = $('#zoombar');
+  z.innerHTML = '';
+  const btn = (id, ic, title, run) => {
+    const b = h('button', { class: 'icon-btn small', id, title, html: icon(ic, 16) });
+    b.addEventListener('click', run);
+    z.append(b);
+    return b;
+  };
+  btn('q-grid', 'grid', `${t('pixelGrid')} (${k("Mod+'")})`, () => setView({ grid: app.settings.grid === false }));
+  btn('q-mirror', 'mirror', t('mirrorPaint'), (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    showMenu(['none', 'x', 'y', 'xy'].map((m) => ({ label: t(`mirror_${m}`), checked: app.opts.mirror === m, run: () => setMirror(m) })), r.left, r.top - 150);
+  });
+  btn('q-tile', 'tile', t('tilePreview'), () => setView({ tile: !app.settings.tile }));
+  z.append(h('span', { class: 'qsep' }));
+  btn('q-fit', 'fit', `${t('zoomFit')} (${k('Mod+0')})`, () => app.view.fit());
+  btn('q-zoomout', 'zoomOut', t('zoomOut'), () => app.view.zoomStep(-1));
+  // Regler logarithmisch: 1 % … 102 400 %
+  const range = h('input', { type: 'range', id: 'q-zrange', min: -6.64, max: 10, step: 0.01, value: 0, title: t('zoom') });
+  range.addEventListener('input', () => app.view.setZoom(2 ** Number(range.value)));
+  z.append(range);
+  btn('q-zoomin', 'zoom', t('zoomIn'), () => app.view.zoomStep(1));
+  const pct = h('button', { class: 'zoom-btn menu-anchor', id: 'q-zoom', title: t('zoom') });
+  pct.addEventListener('click', () => {
+    const r = pct.getBoundingClientRect();
+    const list = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128].map((v) => ({ label: `${Math.round(v * 100)} %`, run: () => app.view.setZoom(v) }));
+    showMenu([{ label: t('zoomFit'), run: () => app.view.fit() }, '-', ...list], r.left - 60, r.top - 330);
+  });
+  z.append(pct);
   refreshQuick();
 }
 function refreshQuick() {
@@ -253,51 +266,45 @@ function refreshQuick() {
   };
   set('q-undo', d && (d.canUndo || busy));
   set('q-redo', d?.canRedo);
-  for (const id of ['q-zoomout', 'q-zoomin', 'q-fit', 'q-zoom']) set(id, !!d);
+  for (const id of ['q-zoomout', 'q-zoomin', 'q-fit', 'q-zoom', 'q-zrange']) set(id, !!d);
+  const zr = $('#q-zrange');
+  if (zr && d && document.activeElement !== zr) zr.value = Math.log2(app.view.zoom);
   const zb = $('#q-zoom');
   if (zb) zb.textContent = d ? zoomText(app.view.zoom) : '–';
-  $('#q-grid')?.classList.toggle('on', app.view.opts.grid);
+  $('#q-grid')?.classList.toggle('on', app.settings.grid !== false);
   $('#q-mirror')?.classList.toggle('on', app.opts.mirror !== 'none');
   $('#q-tile')?.classList.toggle('on', !!app.settings.tile);
   $('#q-side')?.classList.toggle('on', !document.body.classList.contains('no-side'));
+  const mb = $('#q-mode');
+  if (mb) {
+    mb.classList.toggle('hidden', !d);
+    mb.innerHTML = app.viewMode ? `${icon('brush', 16)}<span>${t('modeEdit')}</span>` : `${icon('eye', 16)}<span>${t('modeView')}</span>`;
+    mb.classList.toggle('primary', app.viewMode);
+    mb.title = app.viewMode ? t('modeEditHint') : t('modeViewHint');
+  }
+  for (const id of ['q-prev', 'q-next']) document.getElementById(id)?.classList.toggle('hidden', WEB || !d?.path);
 }
 function zoomText(z) {
   const p = z * 100;
   return `${p >= 10 ? Math.round(p).toLocaleString() : p.toFixed(1)} %`;
 }
 
+/** Kategorien oben (wie Paint 3D): großes Symbol, Name darunter */
 function buildToolbar() {
-  const bar = $('#toolbar');
+  const bar = $('#cats');
   bar.innerHTML = '';
-  const icons = { select: 'select', move: 'move', brush: 'brush', pixel: 'pixel', eraser: 'eraser', fill: 'fill', picker: 'picker', shapes: 'shapes', text: 'text', crop: 'crop', hand: 'hand', zoom: 'zoom' };
-  const groups = [['select', 'move'], ['brush', 'pixel', 'eraser', 'fill', 'picker'], ['shapes', 'text'], ['crop', 'hand', 'zoom']];
-  for (const g of groups) {
-    const wrap = h('div', { class: 'tool-group' });
-    for (const id of g) {
-      const b = h('button', { class: 'tool-btn', 'data-tool': id, title: `${t(`tool_${id}`)} (${TOOL_KEYS[id]})`, html: icon(icons[id], 20) });
-      b.addEventListener('click', () => app.tools.set(id));
-      wrap.append(b);
-    }
-    bar.append(wrap);
+  for (const [id, ic] of CATS) {
+    const b = h('button', { class: 'cat-btn', 'data-cat': id, html: `${icon(ic, 22)}<span>${catLabel(t, id)}</span>` });
+    b.addEventListener('click', () => app.side.setCat(id));
+    bar.append(b);
   }
-  // Haupt- und Zweitfarbe unten
-  const colors = h('div', { class: 'tb-colors' });
-  const prim = h('button', { class: 'swatch primary', id: 'sw-primary', title: t('primaryColor') });
-  const sec = h('button', { class: 'swatch secondary', id: 'sw-secondary', title: t('secondaryColor') });
-  const swap = h('button', { class: 'icon-btn tiny swap', title: `${t('swapColors')} (X)`, html: icon('swap', 14) });
-  prim.addEventListener('click', () => app.side.focusColor('primary'));
-  sec.addEventListener('click', () => app.side.focusColor('secondary'));
-  swap.addEventListener('click', swapColors);
-  colors.append(sec, prim, swap);
-  bar.append(colors);
   refreshToolbar();
 }
 function refreshToolbar() {
-  for (const b of document.querySelectorAll('.tool-btn')) b.classList.toggle('on', b.dataset.tool === app.tools.id);
-  const c = (x) => `rgba(${x.r},${x.g},${x.b},${x.a / 255})`;
-  $('#sw-primary').style.setProperty('--c', c(app.colors.primary));
-  $('#sw-secondary').style.setProperty('--c', c(app.colors.secondary));
+  for (const b of document.querySelectorAll('.cat-btn')) b.classList.toggle('on', b.dataset.cat === app.side?.cat);
 }
+app.refreshCats = refreshToolbar;
+app.refreshQuick = () => refreshQuick();
 
 // ---------------------------------------------------------------- Tabs, Titel, Statusleiste
 function renderTabs() {
@@ -341,7 +348,7 @@ function updateTitle() {
 }
 let hoverPoint = null;
 function renderStatus() {
-  const s = $('#statusbar');
+  const s = $('#st-left');
   const d = app.doc;
   if (!d) {
     s.innerHTML = `<span class="st">Picline ${INFO.version || ''}</span>`;
@@ -367,9 +374,7 @@ function renderStatus() {
   parts.push('<span class="st-spacer"></span>');
   parts.push(`<span class="st">${icon('image', 13)} ${d.w} × ${d.h}</span>`);
   parts.push(`<span class="st">${t('layersN', { n: d.layers.length })}</span>`);
-  parts.push(`<button class="st" id="st-zoom">${zoomText(app.view.zoom)}</button>`);
   s.innerHTML = parts.join('');
-  $('#st-zoom')?.addEventListener('click', () => app.view.fit());
 }
 let statusQueued = false;
 function queueStatus() {
@@ -469,6 +474,7 @@ export function newDoc(w, h, bg = 'white', name) {
   }
   doc.layers.push(l);
   addDoc(doc);
+  setMode(false);
   return doc;
 }
 function activate(doc) {
@@ -547,13 +553,14 @@ export async function openPaths(paths) {
     await openBytes(res.data, fileName(p), p);
   }
 }
-async function openBytes(bytes, name, path = null) {
+async function openBytes(bytes, name, path = null, { view = true } = {}) {
   try {
     const doc = await decode(bytes, name, app.layerName(1));
     doc.name = name;
     doc.path = path;
     doc.markSaved();
     addDoc(doc);
+    setMode(view);
     rememberRecent(path);
     return doc;
   } catch {
@@ -578,7 +585,7 @@ async function siblingImage(dir) {
 async function openPathsReturn(p) {
   const res = await api.readFile(p);
   if (!res || res.error) return null;
-  return openBytes(res.data, fileName(p), p);
+  return openBytes(res.data, fileName(p), p, { view: app.viewMode });
 }
 
 /** Speichern. o: { as: Speichern unter, format: erzwungenes Format }. true = gespeichert. */
@@ -751,6 +758,7 @@ async function placeCanvas(canvas, { newLayer = false, asNew = false, name = nul
     doc.layers.push(new Layer(canvas.width, canvas.height, app.layerName(1)));
     doc.layers[0].ctx.drawImage(canvas, 0, 0);
     addDoc(doc);
+    setMode(false);
     return;
   }
   const d = app.doc;
@@ -763,6 +771,7 @@ async function placeCanvas(canvas, { newLayer = false, asNew = false, name = nul
     if (r == null) return;
     if (r === 'grow') resizeCanvasTo(Math.max(d.w, canvas.width), Math.max(d.h, canvas.height), 'nw');
   }
+  setMode(false);
   app.tools.paste(canvas, { newLayer });
 }
 app.placeCanvas = placeCanvas;
@@ -969,11 +978,30 @@ function resetColors() {
 function setView(o) {
   if ('grid' in o) app.settings.grid = o.grid;
   Object.assign(app.settings, o);
-  app.view.setOptions({ grid: app.settings.grid !== false, gridEvery: app.settings.gridEvery, tile: app.settings.tile, checker: app.settings.checker, gridMin: app.settings.gridMin, smoothDown: app.settings.smoothDown });
+  const edit = !app.viewMode;
+  app.view.setOptions({ grid: app.settings.grid !== false && edit, gridEvery: edit ? app.settings.gridEvery : 0, tile: edit && app.settings.tile, checker: app.settings.checker, gridMin: app.settings.gridMin, smoothDown: app.settings.smoothDown });
   refreshQuick();
   saveSettings();
 }
 app.setView = setView;
+app.cmd = { selectAll, deselect, copy: () => copy(), deleteSelection, swapColors };
+app.imageOps = { resize: () => D.resizeDialog(app), canvas: () => D.canvasDialog(app), rotate: (deg) => rotateImage(deg), flip: (dir) => flipImage(dir), autoCrop };
+/** Ansehen (wie Cutline beim Öffnen: nur das Bild, ziehen/zoomen/blättern) oder Bearbeiten (Werkzeuge und Seitenpanel) */
+function setMode(view) {
+  view = !!view;
+  if (view) app.tools?.commit();
+  if (app.viewMode === view && document.body.classList.contains('viewing') === view) return;
+  app.viewMode = view;
+  document.body.classList.toggle('viewing', view);
+  setView({});
+  app.tools?.updateCursor();
+  refreshQuick();
+  app.view?.render();
+  if (!view) app.side?.toolChanged();
+  // Panel und Werkzeugleiste verändern die Breite: Bild danach neu einpassen, wenn es eingepasst war
+  requestAnimationFrame(() => app.view?.resize());
+}
+app.setMode = setMode;
 function setMirror(m) {
   app.opts.mirror = m;
   refreshQuick();
@@ -1078,7 +1106,7 @@ function onKey(e) {
       '-': () => app.view.zoomStep(-1),
       0: () => app.view.fit(),
       1: () => app.view.setZoom(1),
-      "'": () => setView({ grid: !app.view.opts.grid }),
+      "'": () => setView({ grid: app.settings.grid === false }),
       ']': () => app.doc && app.layerOps.move(1),
       '[': () => app.doc && app.layerOps.move(-1),
       Backspace: () => fillSelection('secondary'),
@@ -1116,8 +1144,12 @@ function onKey(e) {
   if (key === 'x') return run(swapColors);
   if (key === 'd') return run(resetColors);
   if (key === '[' || key === ']') return run(() => app.side.bumpSize(key === ']' ? 1 : -1));
+  if (app.viewMode && app.doc && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return run(() => siblingImage(e.key === 'ArrowRight' ? 1 : -1));
   const tool = Object.entries(TOOL_KEYS).find(([, v]) => v.toLowerCase() === key);
-  if (tool) return run(() => app.tools.set(tool[0]));
+  if (tool) return run(() => {
+    setMode(false);
+    app.tools.set(tool[0]);
+  });
 }
 let webPasteMode = {};
 function setupWebPaste() {
@@ -1221,6 +1253,7 @@ let systemDark = true;
 app.rebuild = () => {
   buildMenubar();
   buildQuick();
+  buildZoomBar();
   buildToolbar();
   app.side.rebuild();
   renderTabs();

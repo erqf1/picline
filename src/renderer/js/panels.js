@@ -1,9 +1,27 @@
-// Seitenpanel rechts: Einstellungen des Werkzeugs, Farbauswahl mit Paletten und die Ebenen.
+// Seitenpanel rechts - aufgebaut wie in Paint 3D: oben wählt man eine Kategorie (Auswählen, Pinsel, Formen, Text,
+// Effekte, Leinwand, Ebenen), rechts erscheinen dazu große Kacheln mit Namen, darunter Einstellungen und Farben.
 import { h, $, prompt, toast } from './ui.js';
 import { icon } from './icons.js';
 import { ColorPicker, PALETTES, parseHex, toHex } from './color.js';
 import { SHAPES, FONTS } from './shapes.js';
 import { BLENDS, cloneCanvas } from './doc.js';
+import * as D from './dialogs.js';
+
+/** Kategorien: id, Symbol, Werkzeuge darin */
+export const CATS = [
+  ['select', 'select', ['select', 'move', 'hand', 'zoom']],
+  ['brushes', 'brush', ['brush', 'pixel', 'eraser', 'fill', 'picker']],
+  ['shapes', 'shapes', ['shapes']],
+  ['text', 'text', ['text']],
+  ['effects', 'effects', []],
+  ['canvas', 'crop', ['crop']],
+  ['layers', 'layers', []],
+];
+export const catOfTool = (id) => (CATS.find((c) => c[2].includes(id)) || [])[0] || null;
+export const catLabel = (t, id) => ({ select: t('tool_select'), brushes: t('tool_brush'), shapes: t('tool_shapes'), text: t('tool_text'), effects: t('menuEffects'), canvas: t('cat_canvas'), layers: t('layers') })[id];
+const PIXEL_SIZES = [1, 2, 3, 4, 6, 8];
+const EFFECTS = [['brightness', 'sun'], ['hue', 'palette'], ['grayscale', 'fxGray'], ['invert', 'fxInvert'], ['sepia', 'fxSepia'], ['posterize', 'fxSteps'],
+  ['threshold', 'fxThreshold'], ['blur', 'fxBlur'], ['sharpen', 'fxSharpen'], ['noise', 'brushSpray'], ['pixelate', 'grid'], ['outline', 'fxOutline']];
 
 // ---------------------------------------------------------------- kleine Bedienelemente
 function slider(label, value, { min, max, step = 1, unit = '' }, onInput) {
@@ -56,11 +74,19 @@ function select(items, value, onChange) {
 }
 const row = (label, ...el) => h('div', { class: 'opt-row' }, h('span', { class: 'opt-label', text: label }), ...el);
 const hint = (text) => h('p', { class: 'opt-hint', text });
+/** Kachel wie in Paint 3D: großes Symbol, Name darunter, die gewählte ist deutlich markiert */
+function tile(ic, label, on, run, title) {
+  const b = h('button', { class: `tile${on ? ' on' : ''}`, title: title || label, html: `${icon(ic, 26)}<span>${label}</span>` });
+  b.addEventListener('click', run);
+  return b;
+}
+const heading = (text) => h('div', { class: 'side-title', text });
 
 export class Side {
   constructor(app) {
     this.app = app;
     this.el = $('#side');
+    this.cat = catOfTool(app.tools.id) || 'brushes';
     this.target = 'primary';
     this.thumbTimer = null;
     app.layerOps = this.layerOps();
@@ -68,208 +94,223 @@ export class Side {
   get t() {
     return this.app.t;
   }
-
   rebuild() {
-    const t = this.t;
-    this.el.innerHTML = '';
-    const section = (id, title) => {
-      const collapsed = !!this.app.settings.panels?.[id];
-      const head = h('button', { class: 'side-head', html: `<span>${title}</span>${icon('down', 14)}` });
-      const body = h('div', { class: 'side-body' });
-      const sec = h('section', { class: `side-sec${collapsed ? ' collapsed' : ''}`, id: `sec-${id}` }, head, body);
-      head.addEventListener('click', () => {
-        sec.classList.toggle('collapsed');
-        this.app.settings.panels = { ...this.app.settings.panels, [id]: sec.classList.contains('collapsed') };
-        this.app.saveSettings();
-      });
-      this.el.append(sec);
-      return { head, body, sec };
-    };
-    this.toolSec = section('tool', t('toolOptions'));
-    this.colorSec = section('color', t('colors'));
-    this.layerSec = section('layers', t('layers'));
-    this.buildColors();
-    this.toolChanged();
-    this.renderLayers(true);
+    this.render();
   }
-
-  // ---------------------------------------------------------------- Werkzeug
+  /** Kategorie oben gewählt: passendes Werkzeug nehmen (das zuletzt darin benutzte) */
+  setCat(cat) {
+    const app = this.app;
+    this.cat = cat;
+    const tools = CATS.find((c) => c[0] === cat)[2];
+    if (tools.length && !tools.includes(app.tools.id)) {
+      const last = app.settings.catTool?.[cat];
+      app.tools.set(tools.includes(last) ? last : tools[0]);
+    }
+    this.render();
+    app.refreshCats();
+  }
   toolChanged() {
     const app = this.app;
-    const t = this.t;
-    const id = app.tools.id;
-    const o = app.opts[id] || {};
-    const save = () => app.saveSettings();
-    const set = (k, v) => {
-      o[k] = v;
-      save();
-      if (app.tools.text) app.tools.refreshText();
-      app.view.render();
-    };
-    this.toolSec.head.querySelector('span').textContent = t(`tool_${id}`);
-    const b = this.toolSec.body;
-    b.innerHTML = '';
-    const sizeRow = (max = 300) => {
-      this.sizeSlider = slider(t('size'), o.size, { min: 1, max, unit: 'px' }, (v) => set('size', v));
-      return this.sizeSlider;
-    };
-    const mirror = () => row(t('mirrorPaint'), select(['none', 'x', 'y', 'xy'].map((m) => [m, t(`mirror_${m}`)]), app.opts.mirror, (v) => {
-      app.opts.mirror = v;
-      save();
-      app.view.render();
-      app.toolChanged();
-    }));
-    switch (id) {
-      case 'brush':
-        b.append(
-          seg([['round', t('brush_round'), 'brushRound'], ['marker', t('brush_marker'), 'brushMarker'], ['calli', t('brush_calli'), 'brushCalli'], ['spray', t('brush_spray'), 'brushSpray'], ['pencil', t('brush_pencil'), 'brushPencil']], o.style, (v) => {
-            set('style', v);
-            this.toolChanged();
-          }, { icons: true, cls: 'wide' }),
-          sizeRow(500),
-          slider(t('opacity'), o.opacity, { min: 1, max: 100, unit: '%' }, (v) => set('opacity', v)),
-        );
-        if (o.style === 'round') b.append(slider(t('hardness'), o.hardness, { min: 0, max: 100, unit: '%' }, (v) => set('hardness', v)));
-        b.append(check(t('penPressure'), o.pressure, (v) => set('pressure', v)), mirror(), hint(t('hintPaint')));
-        break;
-      case 'pixel':
-        b.append(
-          sizeRow(64),
-          slider(t('opacity'), o.opacity, { min: 1, max: 100, unit: '%' }, (v) => set('opacity', v)),
-          check(t('roundTip'), o.round, (v) => set('round', v)),
-          check(t('pixelPerfect'), o.perfect, (v) => set('perfect', v), t('pixelPerfectHint')),
-          mirror(),
-          hint(t('hintPixel')),
-        );
-        break;
-      case 'eraser':
-        b.append(seg([['soft', t('eraser_soft')], ['hard', t('eraser_hard')], ['pixel', t('eraser_pixel')]], o.mode, (v) => {
-          set('mode', v);
-          this.toolChanged();
-        }, { cls: 'wide' }), sizeRow(o.mode === 'pixel' ? 64 : 500), slider(t('opacity'), o.opacity, { min: 1, max: 100, unit: '%' }, (v) => set('opacity', v)));
-        if (o.mode === 'soft') b.append(slider(t('hardness'), o.hardness, { min: 0, max: 100, unit: '%' }, (v) => set('hardness', v)));
-        b.append(mirror());
-        break;
-      case 'fill':
-        b.append(
-          slider(t('tolerance'), o.tolerance, { min: 0, max: 100, unit: '%' }, (v) => set('tolerance', v)),
-          check(t('contiguous'), o.contiguous, (v) => set('contiguous', v), t('contiguousHint')),
-          check(t('sampleAll'), o.sampleAll, (v) => set('sampleAll', v)),
-          hint(t('hintFill')),
-        );
-        break;
-      case 'picker':
-        b.append(
-          check(t('sampleAll'), o.sampleAll, (v) => set('sampleAll', v)),
-          row(t('sampleSize'), seg([[1, '1 px'], [3, '3×3'], [5, '5×5']], o.avg, (v) => set('avg', v))),
-          check(t('pickerBack'), o.back, (v) => set('back', v)),
-          hint(t('hintPicker')),
-        );
-        break;
-      case 'shapes': {
-        const grid = h('div', { class: 'shape-grid' });
-        for (const s of SHAPES) {
-          const btn = h('button', { class: `shape-btn${o.type === s ? ' on' : ''}`, title: t(`shape_${s}`), html: icon(s, 20) });
-          btn.addEventListener('click', () => {
-            set('type', s);
-            for (const x of grid.children) x.classList.toggle('on', x === btn);
-          });
-          grid.append(btn);
-        }
-        b.append(
-          grid,
-          slider(t('lineWidth'), o.width, { min: 1, max: 100, unit: 'px' }, (v) => set('width', v)),
-          check(t('outline'), o.stroke, (v) => set('stroke', v)),
-          row(t('shapeFill'), seg([['none', t('fill_none')], ['secondary', t('fill_secondary')], ['primary', t('fill_primary')]], o.fill, (v) => set('fill', v))),
-          check(t('pixelExact'), o.pixel, (v) => set('pixel', v), t('pixelExactHint')),
-          hint(t('hintShapes')),
-        );
-        break;
-      }
-      case 'text': {
-        const fonts = FONTS.map((f) => [f, f === 'system-ui' ? t('fontSystem') : f === 'serif' ? 'Serif' : f === 'monospace' ? 'Monospace' : f]);
-        const style = h('div', { class: 'seg' });
-        for (const [k2, ic] of [['bold', 'bold'], ['italic', 'italic'], ['underline', 'underline']]) {
-          const btn = h('button', { class: o[k2] ? 'on' : '', title: t(`text_${k2}`), html: icon(ic, 16) });
-          btn.addEventListener('click', () => {
-            set(k2, !o[k2]);
-            btn.classList.toggle('on', o[k2]);
-          });
-          style.append(btn);
-        }
-        b.append(
-          row(t('font'), select(fonts, o.font, (v) => set('font', v))),
-          slider(t('size'), o.size, { min: 4, max: 600, unit: 'px' }, (v) => set('size', v)),
-          h('div', { class: 'opt-row' }, style, seg([['left', t('alignLeft'), 'alignLeft'], ['center', t('alignCenter'), 'alignCenter'], ['right', t('alignRight'), 'alignRight']], o.align, (v) => set('align', v), { icons: true })),
-          check(t('textBg'), o.bg, (v) => set('bg', v)),
-          check(t('pixelExact'), o.pixel, (v) => set('pixel', v), t('pixelTextHint')),
-          hint(t('hintText')),
-        );
-        break;
-      }
-      case 'select': {
-        b.append(row(t('selectShape'), seg([['rect', t('select_rect'), 'select'], ['ellipse', t('select_ellipse'), 'selectEllipse']], o.shape, (v) => set('shape', v), { icons: true })));
-        const btns = h('div', { class: 'opt-buttons' });
-        const add = (label, fn) => {
-          const x = h('button', { class: 'btn small', text: label });
-          x.addEventListener('click', fn);
-          btns.append(x);
-        };
-        add(t('selectAll'), () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: !isMac(), metaKey: isMac() })));
-        add(t('cropToSelection'), () => app.doc?.selection && app.cropTo(app.doc.selection));
-        b.append(btns, hint(t('hintSelect')));
-        break;
-      }
-      case 'move':
-        b.append(check(t('smoothScale'), app.opts.move.smooth, (v) => {
-          set('smooth', v);
-          if (app.tools.float) {
-            app.tools.float.smooth = v;
-            app.view.render();
-          }
-        }, t('smoothScaleHint')));
-        this.floatButtons(b);
-        b.append(hint(t('hintMove')));
-        break;
-      case 'crop': {
-        const ratios = ['free', 'image', '1:1', '4:3', '3:2', '16:9', '9:16', '3:4', '2:3'];
-        b.append(row(t('ratio'), select(ratios.map((r) => [r, r === 'free' ? t('ratioFree') : r === 'image' ? t('ratioImage') : r]), o.ratio, (v) => set('ratio', v))));
-        this.cropFields = h('div', { class: 'crop-fields' });
-        b.append(this.cropFields);
-        const btns = h('div', { class: 'opt-buttons' });
-        const ok = h('button', { class: 'btn small primary', html: `${icon('check', 14)}<span>${t('applyCrop')}</span>` });
-        ok.addEventListener('click', () => app.tools.applyCrop());
-        const reset = h('button', { class: 'btn small', text: t('reset') });
-        reset.addEventListener('click', () => {
-          app.tools.startCrop();
-          app.view.render();
-        });
-        btns.append(reset, ok);
-        b.append(btns, hint(t('hintCrop')));
-        this.cropChanged();
-        break;
-      }
-      case 'hand':
-        b.append(hint(t('hintHand')));
-        break;
-      case 'zoom': {
-        const btns = h('div', { class: 'opt-buttons' });
-        const fit = h('button', { class: 'btn small', text: t('zoomFit') });
-        fit.addEventListener('click', () => app.view.fit());
-        const one = h('button', { class: 'btn small', text: '100 %' });
-        one.addEventListener('click', () => app.view.setZoom(1));
-        btns.append(fit, one);
-        b.append(btns, hint(t('hintZoom')));
-        break;
-      }
+    const c = catOfTool(app.tools.id);
+    if (c) {
+      this.cat = c;
+      app.settings.catTool = { ...app.settings.catTool, [c]: app.tools.id };
     }
+    this.render();
+    app.refreshCats?.();
   }
-  floatButtons(b) {
+
+  render() {
+    const t = this.t;
+    const b = this.el;
+    b.innerHTML = '';
+    this.cropFields = null;
+    this.floatBox = null;
+    this.thumbs = null;
+    this.picker = null;
+    b.append(h('div', { class: 'side-cat', text: catLabel(t, this.cat) }));
+    const body = h('div', { class: 'side-body' });
+    b.append(body);
+    this.body = body;
+    ({ select: () => this.renderSelect(body), brushes: () => this.renderBrushes(body), shapes: () => this.renderShapes(body), text: () => this.renderText(body),
+      effects: () => this.renderEffects(body), canvas: () => this.renderCanvas(body), layers: () => this.renderLayers(body) })[this.cat]();
+  }
+
+  set(id, k, v) {
+    this.app.opts[id][k] = v;
+    this.app.saveSettings();
+    if (this.app.tools.text) this.app.tools.refreshText();
+    this.app.view.render();
+  }
+  mirrorRow() {
+    const app = this.app;
+    return row(this.t('mirrorPaint'), select(['none', 'x', 'y', 'xy'].map((m) => [m, this.t(`mirror_${m}`)]), app.opts.mirror, (v) => {
+      app.opts.mirror = v;
+      app.saveSettings();
+      app.view.render();
+      app.refreshQuick?.();
+    }));
+  }
+
+  // ---------------------------------------------------------------- Pinsel (inkl. Pixelstift, Radierer, Füllen, Pipette)
+  renderBrushes(b) {
     const app = this.app;
     const t = this.t;
-    const box = h('div', { class: 'opt-buttons float-buttons' });
-    const f = app.tools.float;
-    if (f) {
+    const tl = app.tools;
+    const cur = tl.id === 'brush' ? `brush:${app.opts.brush.style}` : tl.id;
+    const items = [
+      ['brush:round', 'brush', t('tool_brush')], ['brush:marker', 'brushMarker', t('brush_marker')], ['brush:calli', 'brushCalli', t('brush_calli')],
+      ['brush:spray', 'brushSpray', t('brush_spray')], ['brush:pencil', 'brushPencil', t('brush_pencil')], ['pixel', 'pixel', t('tool_pixel')],
+      ['eraser', 'eraser', t('tool_eraser')], ['fill', 'fill', t('tool_fill')], ['picker', 'picker', t('tool_picker')],
+    ];
+    const grid = h('div', { class: 'tiles' });
+    for (const [key, ic, label] of items) {
+      grid.append(tile(ic, label, key === cur, () => {
+        const [tool, style] = key.split(':');
+        if (style) app.opts.brush.style = style;
+        app.saveSettings();
+        if (tool !== tl.id) tl.set(tool);
+        else this.render();
+      }, `${label}${({ brush: ' (B)', pixel: ' (P)', eraser: ' (E)', fill: ' (G)', picker: ' (I)' })[key.split(':')[0]] || ''}`));
+    }
+    b.append(grid);
+    const o = app.opts[tl.id];
+    const opts = h('div', { class: 'side-group' }, heading(t('settings')));
+    if (tl.id === 'brush') {
+      this.sizeSlider = slider(t('size'), o.size, { min: 1, max: 500, unit: 'px' }, (v) => this.set('brush', 'size', v));
+      opts.append(this.sizeSlider, slider(t('opacity'), o.opacity, { min: 1, max: 100, unit: '%' }, (v) => this.set('brush', 'opacity', v)));
+      if (o.style === 'round') opts.append(slider(t('hardness'), o.hardness, { min: 0, max: 100, unit: '%' }, (v) => this.set('brush', 'hardness', v)));
+      opts.append(check(t('penPressure'), o.pressure, (v) => this.set('brush', 'pressure', v)), this.mirrorRow());
+    } else if (tl.id === 'pixel') {
+      // Pixelstift: nur Pixel - Größe in ganzen Pixeln, immer hart, immer volle Farbe
+      if (!PIXEL_SIZES.includes(o.size)) o.size = 1;
+      opts.append(row(t('size'), seg(PIXEL_SIZES.map((n) => [n, `${n}`]), o.size, (v) => {
+        this.set('pixel', 'size', v);
+        this.render();
+      }, { cls: 'pixel-sizes' })));
+      if (o.size === 1) opts.append(check(t('pixelPerfect'), o.perfect, (v) => this.set('pixel', 'perfect', v), t('pixelPerfectHint')));
+      opts.append(this.mirrorRow());
+    } else if (tl.id === 'eraser') {
+      opts.append(row(t('eraserMode'), seg([['soft', t('eraser_soft')], ['hard', t('eraser_hard')], ['pixel', t('eraser_pixel')]], o.mode, (v) => {
+        this.set('eraser', 'mode', v);
+        this.render();
+      })));
+      this.sizeSlider = slider(t('size'), o.size, { min: 1, max: o.mode === 'pixel' ? 64 : 500, unit: 'px' }, (v) => this.set('eraser', 'size', v));
+      opts.append(this.sizeSlider, slider(t('opacity'), o.opacity, { min: 1, max: 100, unit: '%' }, (v) => this.set('eraser', 'opacity', v)));
+      if (o.mode === 'soft') opts.append(slider(t('hardness'), o.hardness, { min: 0, max: 100, unit: '%' }, (v) => this.set('eraser', 'hardness', v)));
+      opts.append(this.mirrorRow());
+    } else if (tl.id === 'fill') {
+      opts.append(
+        slider(t('tolerance'), o.tolerance, { min: 0, max: 100, unit: '%' }, (v) => this.set('fill', 'tolerance', v)),
+        check(t('contiguous'), o.contiguous, (v) => this.set('fill', 'contiguous', v), t('contiguousHint')),
+        check(t('sampleAll'), o.sampleAll, (v) => this.set('fill', 'sampleAll', v)),
+      );
+    } else if (tl.id === 'picker') {
+      opts.append(
+        check(t('sampleAll'), o.sampleAll, (v) => this.set('picker', 'sampleAll', v)),
+        row(t('sampleSize'), seg([[1, '1 px'], [3, '3×3'], [5, '5×5']], o.avg, (v) => this.set('picker', 'avg', v))),
+        check(t('pickerBack'), o.back, (v) => this.set('picker', 'back', v)),
+      );
+    }
+    b.append(opts);
+    this.buildColors(b);
+    b.append(hint(t({ brush: 'hintPaint', pixel: 'hintPixel', eraser: 'hintPaint', fill: 'hintFill', picker: 'hintPicker' }[tl.id])));
+  }
+
+  // ---------------------------------------------------------------- Formen und Text
+  renderShapes(b) {
+    const app = this.app;
+    const t = this.t;
+    const o = app.opts.shapes;
+    const grid = h('div', { class: 'tiles' });
+    for (const s of SHAPES) {
+      grid.append(tile(s, t(`shape_${s}`), o.type === s, () => {
+        this.set('shapes', 'type', s);
+        this.render();
+      }));
+    }
+    b.append(grid, h('div', { class: 'side-group' }, heading(t('settings')),
+      slider(t('lineWidth'), o.width, { min: 1, max: 100, unit: 'px' }, (v) => this.set('shapes', 'width', v)),
+      check(t('outline'), o.stroke, (v) => this.set('shapes', 'stroke', v)),
+      row(t('shapeFill'), seg([['none', t('fill_none')], ['secondary', t('fill_secondary')], ['primary', t('fill_primary')]], o.fill, (v) => this.set('shapes', 'fill', v))),
+      check(t('pixelExact'), o.pixel, (v) => this.set('shapes', 'pixel', v), t('pixelExactHint'))));
+    this.buildColors(b);
+    b.append(hint(t('hintShapes')));
+  }
+  renderText(b) {
+    const app = this.app;
+    const t = this.t;
+    const o = app.opts.text;
+    const fonts = FONTS.map((f) => [f, f === 'system-ui' ? t('fontSystem') : f === 'serif' ? 'Serif' : f === 'monospace' ? 'Monospace' : f]);
+    const style = h('div', { class: 'seg' });
+    for (const [k2, ic] of [['bold', 'bold'], ['italic', 'italic'], ['underline', 'underline']]) {
+      const btn = h('button', { class: o[k2] ? 'on' : '', title: t(`text_${k2}`), html: icon(ic, 16) });
+      btn.addEventListener('click', () => {
+        this.set('text', k2, !o[k2]);
+        btn.classList.toggle('on', o[k2]);
+      });
+      style.append(btn);
+    }
+    b.append(h('div', { class: 'side-group' },
+      row(t('font'), select(fonts, o.font, (v) => this.set('text', 'font', v))),
+      (this.sizeSlider = slider(t('size'), o.size, { min: 4, max: 600, unit: 'px' }, (v) => this.set('text', 'size', v))),
+      h('div', { class: 'opt-row' }, style, seg([['left', t('alignLeft'), 'alignLeft'], ['center', t('alignCenter'), 'alignCenter'], ['right', t('alignRight'), 'alignRight']], o.align, (v) => this.set('text', 'align', v), { icons: true })),
+      check(t('textBg'), o.bg, (v) => this.set('text', 'bg', v)),
+      check(t('pixelExact'), o.pixel, (v) => this.set('text', 'pixel', v), t('pixelTextHint'))));
+    this.buildColors(b);
+    b.append(hint(t('hintText')));
+  }
+
+  // ---------------------------------------------------------------- Auswählen
+  renderSelect(b) {
+    const app = this.app;
+    const t = this.t;
+    const tl = app.tools;
+    const cur = tl.id === 'select' ? `select:${app.opts.select.shape}` : tl.id;
+    const grid = h('div', { class: 'tiles' });
+    for (const [key, ic, label] of [['select:rect', 'select', t('select_rect')], ['select:ellipse', 'selectEllipse', t('select_ellipse')], ['move', 'move', t('tool_move')], ['hand', 'hand', t('tool_hand')], ['zoom', 'zoom', t('tool_zoom')]]) {
+      grid.append(tile(ic, label, key === cur, () => {
+        const [tool, shape] = key.split(':');
+        if (shape) app.opts.select.shape = shape;
+        app.saveSettings();
+        if (tool !== tl.id) tl.set(tool);
+        else this.render();
+      }));
+    }
+    b.append(grid);
+    const acts = h('div', { class: 'opt-buttons wide' });
+    const act = (label, fn, dis) => {
+      const x = h('button', { class: 'btn small', text: label });
+      x.disabled = !!dis;
+      x.addEventListener('click', fn);
+      acts.append(x);
+    };
+    const d = app.doc;
+    act(t('selectAll'), () => app.cmd.selectAll(), !d);
+    act(t('deselect'), () => app.cmd.deselect(), !d?.selection);
+    act(t('cropToSelection'), () => d?.selection && app.cropTo(d.selection), !d?.selection);
+    act(t('copy'), () => app.cmd.copy(), !d);
+    act(t('paste'), () => app.pasteImage(), false);
+    act(t('delete'), () => app.cmd.deleteSelection(), !d);
+    b.append(h('div', { class: 'side-group' }, heading(t('commands')), acts));
+    if (tl.id === 'move' || tl.float) {
+      const g = h('div', { class: 'side-group' }, heading(t('settings')), check(t('smoothScale'), app.opts.move.smooth, (v) => {
+        this.set('move', 'smooth', v);
+        if (tl.float) {
+          tl.float.smooth = v;
+          app.view.render();
+        }
+      }, t('smoothScaleHint')));
+      this.floatButtons(g);
+      b.append(g);
+    }
+    b.append(hint(t(tl.id === 'move' ? 'hintMove' : tl.id === 'hand' ? 'hintHand' : tl.id === 'zoom' ? 'hintZoom' : 'hintSelect')));
+  }
+  floatButtons(container) {
+    const app = this.app;
+    const t = this.t;
+    const box = h('div', { class: 'opt-buttons' });
+    if (app.tools.float) {
       const ok = h('button', { class: 'btn small primary', html: `${icon('check', 14)}<span>${t('apply')}</span>` });
       ok.addEventListener('click', () => app.tools.applyFloat());
       const no = h('button', { class: 'btn small', text: t('cancel') });
@@ -277,19 +318,47 @@ export class Side {
       box.append(no, ok);
     }
     this.floatBox = box;
-    b.append(box);
+    container.append(box);
   }
   floatChanged() {
-    if (this.app.tools.id !== 'move' || !this.floatBox) return;
-    const had = this.floatBox.children.length > 0;
-    if (had !== !!this.app.tools.float) {
-      const parent = this.floatBox.parentNode;
-      const next = this.floatBox.nextSibling;
-      this.floatBox.remove();
-      const tmp = h('div');
-      this.floatButtons(tmp);
-      parent.insertBefore(this.floatBox, next);
+    if (this.cat === 'select' || this.cat === 'shapes') this.render();
+  }
+
+  // ---------------------------------------------------------------- Effekte, Leinwand
+  renderEffects(b) {
+    const app = this.app;
+    const t = this.t;
+    const grid = h('div', { class: 'tiles' });
+    for (const [id, ic] of EFFECTS) grid.append(tile(ic, t(`fx_${id}`).replace(/ \(.*\)$/, ''), false, () => app.doc && D.effectDialog(app, id), t(`fx_${id}`)));
+    b.append(grid, hint(t(app.doc?.selection ? 'fxSelectionOnly' : 'fxLayerHint')));
+  }
+  renderCanvas(b) {
+    const app = this.app;
+    const t = this.t;
+    const o = app.opts.crop;
+    const ratios = ['free', 'image', '1:1', '4:3', '3:2', '16:9', '9:16', '3:4', '2:3'];
+    const g = h('div', { class: 'side-group' }, heading(t('crop')));
+    g.append(row(t('ratio'), select(ratios.map((r) => [r, r === 'free' ? t('ratioFree') : r === 'image' ? t('ratioImage') : r]), o.ratio, (v) => this.set('crop', 'ratio', v))));
+    this.cropFields = h('div', { class: 'crop-fields' });
+    g.append(this.cropFields);
+    const btns = h('div', { class: 'opt-buttons' });
+    const ok = h('button', { class: 'btn small primary', html: `${icon('check', 14)}<span>${t('applyCrop')}</span>` });
+    ok.addEventListener('click', () => app.tools.applyCrop());
+    const reset = h('button', { class: 'btn small', text: t('reset') });
+    reset.addEventListener('click', () => {
+      app.tools.startCrop();
+      app.view.render();
+    });
+    btns.append(reset, ok);
+    g.append(btns, hint(t('hintCrop')));
+    const grid = h('div', { class: 'tiles' });
+    const ops = app.imageOps;
+    for (const [ic, label, fn] of [['image', t('resizeImage').replace('…', ''), ops.resize], ['fit', t('canvasSize').replace('…', ''), ops.canvas], ['rotateR', t('rotateRight'), () => ops.rotate(90)],
+      ['rotateL', t('rotateLeft'), () => ops.rotate(-90)], ['flipH', t('flipH'), () => ops.flip('h')], ['flipV', t('flipV'), () => ops.flip('v')], ['crop', t('autoCrop'), ops.autoCrop]]) {
+      grid.append(tile(ic, label, false, () => app.doc && fn()));
     }
+    b.append(g, h('div', { class: 'side-group' }, heading(t('menuImage')), grid));
+    this.cropChanged();
   }
   cropChanged() {
     const box = this.cropFields;
@@ -315,12 +384,19 @@ export class Side {
   }
   /** [ und ]: Größe des Werkzeugs ändern */
   bumpSize(dir) {
-    const o = this.app.opts[this.app.tools.id];
+    const id = this.app.tools.id;
+    const o = this.app.opts[id];
     if (!o || !('size' in o)) return;
-    const s = o.size;
-    const step = s < 10 ? 1 : s < 50 ? 2 : s < 120 ? 5 : 10;
-    o.size = Math.max(1, Math.min(500, s + dir * step));
-    this.sizeSlider?.setValue(o.size);
+    if (id === 'pixel') {
+      const i = Math.max(0, PIXEL_SIZES.indexOf(o.size));
+      o.size = PIXEL_SIZES[Math.min(PIXEL_SIZES.length - 1, Math.max(0, i + dir))];
+      if (this.cat === 'brushes') this.render();
+    } else {
+      const s = o.size;
+      const step = s < 10 ? 1 : s < 50 ? 2 : s < 120 ? 5 : 10;
+      o.size = Math.max(1, Math.min(500, s + dir * step));
+      this.sizeSlider?.setValue(o.size);
+    }
     if (this.app.tools.text) this.app.tools.refreshText();
     this.app.view.render();
     this.app.saveSettings();
@@ -328,11 +404,10 @@ export class Side {
   }
 
   // ---------------------------------------------------------------- Farben
-  buildColors() {
+  buildColors(container) {
     const app = this.app;
     const t = this.t;
-    const b = this.colorSec.body;
-    b.innerHTML = '';
+    const g = h('div', { class: 'side-group' }, heading(t('colors')));
     const pair = h('div', { class: 'color-pair' });
     this.pairBtns = {};
     for (const which of ['primary', 'secondary']) {
@@ -341,6 +416,11 @@ export class Side {
       this.pairBtns[which] = btn;
       pair.append(btn);
     }
+    const swap = h('button', { class: 'icon-btn small', title: `${t('swapColors')} (X)`, html: icon('swap', 16) });
+    swap.addEventListener('click', () => app.cmd.swapColors());
+    pair.append(swap);
+    this.palBox = h('div', { class: 'palette' });
+    this.recentBox = h('div', { class: 'palette recent' });
     this.picker = new ColorPicker((c) => {
       // kommt vom Farbfeld selbst: nicht zurückschreiben (sonst springt der Farbton bei Grautönen)
       this.fromPicker = true;
@@ -348,14 +428,13 @@ export class Side {
       this.fromPicker = false;
     });
     this.picker.onCommit = () => app.rememberColor(app.colors[this.target]);
-    this.palBox = h('div', { class: 'palette' });
-    this.recentBox = h('div', { class: 'palette recent' });
     const palSel = select(Object.keys(PALETTES).map((p) => [p, t(`pal_${p}`)]), app.settings.palette, (v) => {
       app.settings.palette = v;
       app.saveSettings();
       this.renderPalette();
     });
-    b.append(pair, this.picker.el, row(t('palette'), palSel), this.palBox, h('div', { class: 'opt-label small', text: t('recentColors') }), this.recentBox);
+    g.append(pair, this.palBox, row(t('palette'), palSel), h('div', { class: 'opt-label small', text: t('recentColors') }), this.recentBox, this.picker.el);
+    container.append(g);
     this.renderPalette();
     this.colorsChanged();
   }
@@ -376,18 +455,17 @@ export class Side {
   }
   focusColor(which) {
     this.target = which;
-    this.colorSec.sec.classList.remove('collapsed');
     this.colorsChanged();
   }
   paintPair() {
-    for (const [which, btn] of Object.entries(this.pairBtns)) {
+    for (const [which, btn] of Object.entries(this.pairBtns || {})) {
       const c = this.app.colors[which];
       btn.classList.toggle('on', which === this.target);
       btn.querySelector('.swatch-dot').style.setProperty('--c', `rgba(${c.r},${c.g},${c.b},${c.a / 255})`);
     }
   }
   colorsChanged() {
-    if (!this.picker) return;
+    if (!this.picker || !this.picker.el.isConnected) return;
     this.paintPair();
     if (!this.fromPicker) this.picker.set(this.app.colors[this.target]);
     this.recentBox.innerHTML = '';
@@ -403,13 +481,12 @@ export class Side {
       return;
     }
     if (kind === 'saved') return;
-    this.renderLayers(kind === 'structure');
+    if (this.cat === 'layers') this.render();
+    else if (this.cat === 'select' || this.cat === 'effects') this.render();
   }
-  renderLayers() {
+  renderLayers(b) {
     const app = this.app;
     const t = this.t;
-    const b = this.layerSec.body;
-    b.innerHTML = '';
     const d = app.doc;
     if (!d) {
       b.append(hint(t('noImage')));
@@ -444,10 +521,9 @@ export class Side {
         e.stopPropagation();
         d.setLayerProp(l, 'locked', !l.locked, t('lockLayer'));
       });
-      const thumb = h('canvas', { class: 'layer-thumb', width: 44, height: 32 });
+      const thumb = h('canvas', { class: 'layer-thumb', width: 52, height: 38 });
       this.thumbs.set(l, { canvas: thumb, version: -1 });
-      const name = h('span', { class: 'layer-name', text: l.name });
-      const item = h('div', { class: `layer${i === d.active ? ' active' : ''}${l.visible ? '' : ' hidden-layer'}`, draggable: 'true' }, eye, thumb, name, lock);
+      const item = h('div', { class: `layer${i === d.active ? ' active' : ''}${l.visible ? '' : ' hidden-layer'}`, draggable: 'true' }, eye, thumb, h('span', { class: 'layer-name', text: l.name }), lock);
       item.addEventListener('click', () => ops.select(i));
       item.addEventListener('dblclick', () => ops.rename(l));
       item.addEventListener('dragstart', (e) => {
@@ -471,15 +547,15 @@ export class Side {
       list.append(item);
     }
     const l = d.layer;
-    const opacity = slider(t('opacity'), Math.round(l.opacity * 100), { min: 0, max: 100, unit: '%' }, (v) => {
-      d.setLayerProp(l, 'opacity', v / 100, t('opacity'));
-      app.view.render();
-    });
-    const blend = row(t('blendMode'), select(BLENDS.map((m) => [m, t(`blend_${m}`)]), l.blend, (v) => {
-      d.setLayerProp(l, 'blend', v, t('blendMode'));
-      app.edited();
-    }));
-    b.append(bar, list, opacity, blend);
+    b.append(bar, list, h('div', { class: 'side-group' }, heading(l.name),
+      slider(t('opacity'), Math.round(l.opacity * 100), { min: 0, max: 100, unit: '%' }, (v) => {
+        d.setLayerProp(l, 'opacity', v / 100, t('opacity'));
+        app.view.render();
+      }),
+      row(t('blendMode'), select(BLENDS.map((m) => [m, t(`blend_${m}`)]), l.blend, (v) => {
+        d.setLayerProp(l, 'blend', v, t('blendMode'));
+        app.edited();
+      }))));
     this.updateThumbs(true);
   }
   updateThumbs(force) {
@@ -584,11 +660,10 @@ export class Side {
         const name = await prompt(t('layerProperties'), t('layerName'), l.name, { okLabel: t('ok'), cancelLabel: t('cancel') });
         if (name != null && name.trim()) {
           app.doc.setLayerProp(l, 'name', name.trim(), t('layerProperties'));
-          this.renderLayers();
+          this.render();
         }
       },
     };
   }
 }
-const isMac = () => /Mac/.test(navigator.platform);
 export { toHex, cloneCanvas };
