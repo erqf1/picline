@@ -22,7 +22,7 @@ export class View {
     this.cssW = 0;
     this.cssH = 0;
     this.dpr = 1;
-    this.opts = { grid: true, gridMin: 8, gridEvery: 0, tile: false, checker: 'light', smoothDown: true };
+    this.opts = { grid: true, gridMin: 8, gridEvery: 0, tile: false, checker: 'none', smoothDown: true, frame: true };
     this.colors = { bg: '#202329', grid: 'rgba(128,128,128,0.38)', gridStrong: 'rgba(120,140,255,0.55)', border: 'rgba(0,0,0,0.25)' };
     this.overlays = new Set(); // (g, view) => {} - zeichnen im Bildschirm-Raster (setTransform(dpr...))
     this.onChange = null; // Zoom/Verschiebung geändert
@@ -40,6 +40,11 @@ export class View {
   }
 
   makeChecker() {
+    // 'none': durchsichtige Stellen zeigen einfach den Hintergrund der Arbeitsfläche
+    if (this.opts.checker === 'none') {
+      this.checker = null;
+      return;
+    }
     const c = document.createElement('canvas');
     c.width = c.height = 16;
     const g = c.getContext('2d');
@@ -290,7 +295,7 @@ export class View {
           this.drawImageAt(comp, this.panX + tx * sw, this.panY + ty * sh, true);
         }
       }
-    } else {
+    } else if (this.checker) {
       g.save();
       g.shadowColor = 'rgba(0,0,0,0.32)';
       g.shadowBlur = 16;
@@ -300,6 +305,13 @@ export class View {
       g.restore();
     }
     this.drawImageAt(comp, this.panX, this.panY, false);
+    // ohne Schachbrett: beim Bearbeiten ein feiner Rahmen, damit man sieht, wo die Leinwand endet
+    if (!this.checker && this.opts.frame && !this.opts.tile) {
+      this.screenTransform();
+      g.strokeStyle = this.colors.frame || 'rgba(128,128,140,0.45)';
+      g.lineWidth = 1;
+      g.strokeRect(Math.round(this.panX) - 0.5, Math.round(this.panY) - 0.5, Math.round(sw) + 1, Math.round(sh) + 1);
+    }
 
     // Pixelraster und Raster alle N Pixel
     const vis = this.visibleRect();
@@ -357,8 +369,10 @@ export class View {
     const dy1 = Math.round((oy + y1 * z) * dpr);
     g.setTransform(1, 0, 0, 1, 0, 0);
     // Schachbrett unter durchsichtigen Stellen (bleibt beim Zoomen gleich groß)
-    g.fillStyle = this.checker;
-    g.fillRect(dx0, dy0, dx1 - dx0, dy1 - dy0);
+    if (this.checker) {
+      g.fillStyle = this.checker;
+      g.fillRect(dx0, dy0, dx1 - dx0, dy1 - dy0);
+    }
     g.imageSmoothingEnabled = z < 1 && this.opts.smoothDown;
     g.imageSmoothingQuality = 'high';
     if (faded) g.globalAlpha = 0.92;

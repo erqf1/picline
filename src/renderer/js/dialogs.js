@@ -291,7 +291,7 @@ export async function settingsDialog(app) {
       set('gridMin', Number(v));
       app.setView({});
     })),
-    rowS(t('checker'), sel([['light', t('checker_light')], ['dark', t('checker_dark')]], s.checker, (v) => app.setView({ checker: v }))),
+    rowS(t('checker'), sel([['none', t('checker_none')], ['light', t('checker_light')], ['dark', t('checker_dark')]], s.checker, (v) => app.setView({ checker: v }))),
     rowS(t('smoothDown'), sel([['1', t('on')], ['0', t('off')]], s.smoothDown ? '1' : '0', (v) => app.setView({ smoothDown: v === '1' })), t('smoothDownHint')),
     h('div', { class: 'set-title', text: t('setFiles') }),
     rowS(t('jpgQuality'), sel([100, 95, 92, 90, 85, 80, 70, 60].map((q) => [q, `${q} %`]), s.jpgQuality, (v) => set('jpgQuality', Number(v))), t('jpgQualityHint')),

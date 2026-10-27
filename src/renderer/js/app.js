@@ -20,7 +20,7 @@ const MAC = () => INFO.platform === 'darwin';
 
 // ---------------------------------------------------------------- Zustand
 const DEFAULTS = {
-  language: null, mode: 'system', accent: '#8b5cf6', wheel: 'zoom', checker: 'light', gridMin: 8, gridEvery: 0, tile: false, jpgQuality: 92,
+  language: null, mode: 'system', accent: '#8b5cf6', wheel: 'zoom', checker: 'none', gridMin: 8, gridEvery: 0, tile: false, jpgQuality: 92,
   fileIcons: 'auto', recent: [], palette: 'basic', recentColors: [], newW: 1280, newH: 720, newBg: 'white', smoothDown: true, panels: {},
 };
 export const app = {
@@ -192,7 +192,7 @@ function viewMenu() {
     { label: t('gridEvery'), submenu: () => [0, 4, 8, 16, 32, 64].map((n) => ({ label: n ? t('gridEveryN', { n }) : t('off'), checked: s.gridEvery === n, run: () => setView({ gridEvery: n }) })) },
     { label: t('tilePreview'), checked: s.tile, run: () => setView({ tile: !s.tile }) },
     { label: t('mirrorPaint'), submenu: () => ['none', 'x', 'y', 'xy'].map((m) => ({ label: t(`mirror_${m}`), checked: app.opts.mirror === m, run: () => setMirror(m) })) },
-    { label: t('checker'), submenu: () => ['light', 'dark'].map((c) => ({ label: t(`checker_${c}`), checked: s.checker === c, run: () => setView({ checker: c }) })) },
+    { label: t('checker'), submenu: () => ['none', 'light', 'dark'].map((c) => ({ label: t(`checker_${c}`), checked: s.checker === c, run: () => setView({ checker: c }) })) },
     '-',
     { label: t('showPanel'), shortcut: k('Tab'), checked: !document.body.classList.contains('no-side'), run: toggleSide },
     { label: t('fullscreen'), shortcut: 'F11', checked: !!app.fullscreen, run: () => setFullscreen(!app.fullscreen) },
@@ -987,7 +987,7 @@ function setView(o) {
   if ('grid' in o) app.settings.grid = o.grid;
   Object.assign(app.settings, o);
   const edit = !app.looking;
-  app.view.setOptions({ grid: app.settings.grid !== false && edit, gridEvery: edit ? app.settings.gridEvery : 0, tile: edit && app.settings.tile, checker: app.settings.checker, gridMin: app.settings.gridMin, smoothDown: app.settings.smoothDown });
+  app.view.setOptions({ grid: app.settings.grid !== false && edit, gridEvery: edit ? app.settings.gridEvery : 0, tile: edit && app.settings.tile, frame: edit, checker: app.settings.checker, gridMin: app.settings.gridMin, smoothDown: app.settings.smoothDown });
   refreshQuick();
   saveSettings();
 }
@@ -1326,6 +1326,8 @@ async function start() {
   systemDark = INFO.dark;
   const saved = (await api.getSettings()) || {};
   app.settings = { ...DEFAULTS, ...saved };
+  // ab 1.0.3: durchsichtige Stellen zeigen den normalen Hintergrund statt Schachbrett (einmal umstellen)
+  if (!app.settings.bgPlain) Object.assign(app.settings, { checker: 'none', bgPlain: true });
   if (!app.settings.language) {
     const nav = (navigator.language || 'en').slice(0, 2);
     app.settings.language = LANGS.some(([c]) => c === nav) ? nav : 'en';
