@@ -1,0 +1,14 @@
+{
+  "comment": "Bildtypen für Öffnen mit: Symbol (Beschriftung, Farbe) und Endungen. Danach: python tools/make-filetype-icons.py",
+  "icons": {
+    "png": { "label": "png", "color": "#7c3aed", "exts": ["png"] },
+    "jpg": { "label": "jpg", "color": "#db2777", "exts": ["jpg", "jpeg", "jfif"] },
+    "webp": { "label": "webp", "color": "#0891b2", "exts": ["webp"] },
+    "gif": { "label": "gif", "color": "#ea580c", "exts": ["gif"] },
+    "bmp": { "label": "bmp", "color": "#2563eb", "exts": ["bmp"] },
+    "ico": { "label": "ico", "color": "#16a34a", "exts": ["ico", "cur"] },
+    "avif": { "label": "avif", "color": "#b45309", "exts": ["avif"] },
+    "picline": { "label": "pic", "color": "#8b5cf6", "exts": ["picline"] }
+  },
+  "own": ["picline"]
+}

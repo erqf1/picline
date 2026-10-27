@@ -1,0 +1,237 @@
+{
+  "name": "picline",
+  "productName": "Picline",
+  "version": "1.0.0",
+  "description": "Bildeditor wie Paint 3D: Pinsel, Pixelstift, Formen, Text, Ebenen und Zoom bis auf einzelne Pixel – auch für Minecraft-Texturen.",
+  "main": "src/main.js",
+  "private": true,
+  "desktopName": "win.mert.Picline",
+  "scripts": {
+    "bundle": "node build.mjs",
+    "start": "node build.mjs && electron .",
+    "build": "node build.mjs && electron-builder",
+    "build:win": "node build.mjs && electron-builder -w"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "erqf1",
+    "email": "erqf1@users.noreply.github.com"
+  },
+  "devDependencies": {
+    "electron": "44.9.3",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
+  "allowScripts": {
+    "electron@44.9.3": true,
+    "esbuild@0.28.2": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/erqf1/picline.git"
+  },
+  "engines": {
+    "node": ">=22.2"
+  },
+  "build": {
+    "appId": "win.mert.Picline",
+    "productName": "Picline",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/*.js",
+      "src/shared/**/*",
+      "src/renderer/index.html",
+      "src/renderer/style.css",
+      "src/renderer/dist/**/*",
+      "assets/icon.png",
+      "package.json"
+    ],
+    "afterPack": "tools/afterPack.js",
+    "publish": {
+      "provider": "github",
+      "owner": "erqf1",
+      "repo": "picline"
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "assets/filetypes",
+          "to": "filetypes",
+          "filter": [
+            "light/*.ico",
+            "dark/*.ico"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "Picline-Setup-${version}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "include": "build/installer.nsh"
+    },
+    "portable": {
+      "artifactName": "Picline-${version}-portable.${ext}"
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "category": "Graphics",
+      "syncDesktopName": true,
+      "synopsis": "Bildeditor mit Pixelstift, Ebenen und unendlichem Zoom",
+      "artifactName": "Picline-${version}-${arch}.${ext}",
+      "mimeTypes": [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/bmp",
+        "image/gif",
+        "image/x-icon",
+        "image/vnd.microsoft.icon",
+        "image/avif",
+        "image/svg+xml"
+      ],
+      "desktop": {
+        "entry": {
+          "Keywords": "paint;image;editor;pixel;drawing;minecraft;texture;"
+        }
+      },
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "pacman",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "deb": {
+      "artifactName": "Picline-${version}-amd64.${ext}"
+    },
+    "pacman": {
+      "artifactName": "Picline-${version}-x86_64.${ext}"
+    },
+    "mac": {
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.graphics-design",
+      "fileAssociations": [
+        {
+          "ext": [
+            "png"
+          ],
+          "name": "PNG image",
+          "role": "Editor",
+          "icon": "assets/filetypes/mac/png.icns"
+        },
+        {
+          "ext": [
+            "jpg",
+            "jpeg",
+            "jfif"
+          ],
+          "name": "JPG image",
+          "role": "Editor",
+          "icon": "assets/filetypes/mac/jpg.icns"
+        },
+        {
+          "ext": [
+            "webp"
+          ],
+          "name": "WEBP image",
+          "role": "Editor",
+          "icon": "assets/filetypes/mac/webp.icns"
+        },
+        {
+          "ext": [
+            "gif"
+          ],
+          "name": "GIF image",
+          "role": "Editor",
+          "icon": "assets/filetypes/mac/gif.icns"
+        },
+        {
+          "ext": [
+            "bmp"
+          ],
+          "name": "BMP image",
+          "role": "Editor",
+          "icon": "assets/filetypes/mac/bmp.icns"
+        },
+        {
+          "ext": [
+            "ico",
+            "cur"
+          ],
+          "name": "ICO image",
+          "role": "Editor",
+          "icon": "assets/filetypes/mac/ico.icns"
+        },
+        {
+          "ext": [
+            "avif"
+          ],
+          "name": "AVIF image",
+          "role": "Editor",
+          "icon": "assets/filetypes/mac/avif.icns"
+        },
+        {
+          "ext": [
+            "picline"
+          ],
+          "name": "Picline project",
+          "role": "Editor",
+          "icon": "assets/filetypes/mac/picline.icns"
+        }
+      ],
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Picline-${version}-mac-${arch}.${ext}"
+    }
+  }
+}

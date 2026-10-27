@@ -1,0 +1,6 @@
+/* Picline im Browser: nur was anders ist als in der App */
+body.web { overscroll-behavior: none; }
+/* schmale Bildschirme: Seitenpanel schwebt über dem Bild (Tab blendet es ein und aus) */
+@media (max-width: 760px) {
+  body.web .side { position: absolute; right: 0; top: 74px; bottom: 26px; z-index: 6; box-shadow: var(--shadow); }
+}
