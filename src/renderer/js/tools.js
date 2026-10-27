@@ -51,7 +51,7 @@ export class Tools {
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('wheel', (e) => this.wheel(e), { passive: false });
     c.addEventListener('dblclick', (e) => {
-      if (this.id === 'hand' || this.app.viewMode) this.view.fit();
+      if (this.id === 'hand' || this.app.looking) this.view.fit(true);
       void e;
     });
     this.view.overlays.add((g, v) => this.overlay(g, v));
@@ -143,8 +143,8 @@ export class Tools {
     const p = this.point(e);
     const right = e.button === 2;
     // Ansehen-Modus (wie Cutline): nur schauen - Ziehen verschiebt, nichts wird bemalt
-    if (this.app.viewMode && e.button === 2) return;
-    if (e.button === 1 || this.space || this.id === 'hand' || this.app.viewMode) {
+    if (this.app.looking && e.button === 2) return;
+    if (e.button === 1 || this.space || this.id === 'hand' || this.app.looking) {
       this.drag = { type: 'pan', x: p.sx, y: p.sy };
       this.view.canvas.style.cursor = 'grabbing';
       return;
@@ -182,7 +182,7 @@ export class Tools {
     const d = this.drag;
     if (!d) {
       this.updateCursor(p);
-      if (!this.app.viewMode && (PAINT.has(this.id) || this.id === 'fill' || this.id === 'picker' || this.id === 'shapes')) this.view.render();
+      if (!this.app.looking && (PAINT.has(this.id) || this.id === 'fill' || this.id === 'picker' || this.id === 'shapes')) this.view.render();
       return;
     }
     if (d.type === 'pan') {
@@ -226,9 +226,9 @@ export class Tools {
       const h = Math.abs(d.b.y - d.a.y) * v.zoom;
       if (w > 8 && h > 8 && !d.out) {
         const z = Math.min(v.cssW / Math.abs(d.b.x - d.a.x), v.cssH / Math.abs(d.b.y - d.a.y)) * 0.92;
-        v.setZoom(z);
-        const c = v.toScreen((d.a.x + d.b.x) / 2, (d.a.y + d.b.y) / 2);
-        v.panBy(v.cssW / 2 - c.x, v.cssH / 2 - c.y);
+        const mx = (d.a.x + d.b.x) / 2;
+        const my = (d.a.y + d.b.y) / 2;
+        v.animateTo(z, v.cssW / 2 - mx * z, v.cssH / 2 - my * z);
       } else v.zoomStep(d.out ? -1 : 1, p.sx, p.sy);
       return;
     }
@@ -264,9 +264,13 @@ export class Tools {
     const touchpad = !e.ctrlKey && e.deltaMode === 0 && (e.deltaX !== 0 || !Number.isInteger(e.deltaY));
     if (e.ctrlKey || (zoomMode && !e.shiftKey && !touchpad)) {
       if (Math.abs(e.deltaY) < 30 && e.ctrlKey && !Number.isInteger(e.deltaY)) {
-        // Touchpad: stufenlos
+        // Touchpad: folgt den Fingern direkt
         this.view.setZoom(this.view.zoom * Math.exp(-e.deltaY * 0.01), s.x, s.y);
-      } else this.view.zoomStep(e.deltaY < 0 ? 1 : -1, s.x, s.y);
+      } else {
+        // Mausrad: stufenlos und weich - eine Raste etwa ×1,25, schnelles Drehen summiert sich
+        const notches = Math.max(-4, Math.min(4, -(e.deltaMode === 1 ? e.deltaY / 3 : e.deltaY / 100)));
+        this.view.zoomBy(1.25 ** notches, s.x, s.y);
+      }
       return;
     }
     if (e.shiftKey) this.view.panBy(-(e.deltaY || e.deltaX), 0);
@@ -279,7 +283,7 @@ export class Tools {
   updateCursor(p = this.hover) {
     const c = this.view.canvas;
     if (this.drag?.type === 'pan') return;
-    if (this.space || this.id === 'hand' || this.app.viewMode) {
+    if (this.space || this.id === 'hand' || this.app.looking) {
       c.style.cursor = 'grab';
       return;
     }
@@ -867,7 +871,7 @@ export class Tools {
       g.strokeRect(Math.min(a.x, b.x) + 0.5, Math.min(a.y, b.y) + 0.5, Math.abs(b.x - a.x), Math.abs(b.y - a.y));
       g.setLineDash([]);
     }
-    if (this.hover && !this.space && !this.app.viewMode && !this.drag?.type?.startsWith('p') && (PAINT.has(this.id) || this.id === 'fill' || this.id === 'picker' || this.id === 'shapes')) this.drawCursor(g, v);
+    if (this.hover && !this.space && !this.app.looking && !this.drag?.type?.startsWith('p') && (PAINT.has(this.id) || this.id === 'fill' || this.id === 'picker' || this.id === 'shapes')) this.drawCursor(g, v);
   }
   drawCursor(g, v) {
     const p = this.hover;

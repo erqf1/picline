@@ -143,6 +143,9 @@ function createWindow() {
   win.on('closed', () => {
     win = null;
   });
+  // Vollbild (auch über das System beendet): Oberfläche ein-/ausblenden
+  win.on('enter-full-screen', () => win.webContents.send('app:fullscreen', true));
+  win.on('leave-full-screen', () => win.webContents.send('app:fullscreen', false));
 }
 
 function buildMenu() {
@@ -202,6 +205,9 @@ ipcMain.handle('app:set-title', (_e, title) => {
 });
 ipcMain.handle('win:fullscreen', () => {
   if (win) win.setFullScreen(!win.isFullScreen());
+});
+ipcMain.handle('win:set-fullscreen', (_e, on) => {
+  if (win) win.setFullScreen(!!on);
 });
 nativeTheme.on('updated', () => {
   if (win) win.webContents.send('app:system-theme', nativeTheme.shouldUseDarkColors);

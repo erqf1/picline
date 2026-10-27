@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('api', {
   updateReady: () => ipcRenderer.send('app:update-ready'),
   setTitle: (title) => invoke('app:set-title', title),
   toggleFullscreen: () => invoke('win:fullscreen'),
+  setFullscreen: (on) => invoke('win:set-fullscreen', on),
+  onFullscreen: (cb) => on('app:fullscreen', cb),
 
   openDialog: (opts) => invoke('file:open-dialog', opts),
   saveDialog: (opts) => invoke('file:save-dialog', opts),

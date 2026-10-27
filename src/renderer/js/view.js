@@ -98,9 +98,15 @@ export class View {
     if (z > 1) z = Math.min(64, Math.floor(z));
     return Math.max(MIN_ZOOM, z);
   }
-  fit() {
+  /** animate: weich hingleiten (Knöpfe, Tasten), sonst sofort (neues Bild, Fenstergröße) */
+  fit(animate = false) {
     if (!this.doc) return;
-    this.zoom = this.fitZoom();
+    const z = this.fitZoom();
+    const px = Math.round((this.cssW - this.doc.w * z) / 2);
+    const py = Math.round((this.cssH - this.doc.h * z) / 2);
+    if (animate) return this.animateTo(z, px, py);
+    this.stopAnim();
+    this.zoom = z;
     this.center();
   }
   center() {
@@ -110,6 +116,7 @@ export class View {
     this.onChange?.();
   }
   setZoom(z, cx = this.cssW / 2, cy = this.cssH / 2) {
+    this.stopAnim();
     z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
     const dx = (cx - this.panX) / this.zoom;
     const dy = (cy - this.panY) / this.zoom;
@@ -125,12 +132,96 @@ export class View {
     this.render();
     this.onChange?.();
   }
-  zoomStep(dir, cx, cy) {
-    const z = this.zoom;
+  zoomStep(dir, cx = this.cssW / 2, cy = this.cssH / 2) {
+    // läuft schon eine Zoom-Bewegung, vom Ziel aus weiterzählen (schnelles Drücken summiert sich)
+    const z = this.anim?.mode === 'anchor' ? this.anim.target : this.zoom;
     const next = dir > 0 ? ZOOMS.find((v) => v > z * 1.001) : [...ZOOMS].reverse().find((v) => v < z / 1.001);
-    if (next) this.setZoom(next, cx, cy);
+    if (next) this.zoomSmooth(next, cx, cy);
+  }
+  /** Mausrad: stufenlos um einen Faktor, weich animiert */
+  zoomBy(factor, cx, cy) {
+    const z = this.anim?.mode === 'anchor' ? this.anim.target : this.zoom;
+    this.zoomSmooth(z * factor, cx, cy);
+  }
+
+  // ---------------------------------------------------------------- weiches Zoomen
+  // Der Bildpunkt unter (cx, cy) bleibt in jedem Bild genau dort; der Zoom gleitet logarithmisch zum Ziel.
+  zoomSmooth(target, cx = this.cssW / 2, cy = this.cssH / 2) {
+    if (!this.doc) return;
+    target = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, target));
+    const p = this.toDoc(cx, cy);
+    this.anim = { mode: 'anchor', target, cx, cy, dx: p.x, dy: p.y };
+    this.runAnim();
+  }
+  animateTo(zoom, panX, panY) {
+    this.anim = { mode: 'free', target: zoom, panX, panY };
+    this.runAnim();
+  }
+  stopAnim() {
+    this.anim = null;
+  }
+  runAnim() {
+    if (this.animating) return;
+    this.animating = true;
+    let last = performance.now();
+    // nächstes Bild: per requestAnimationFrame, zur Sicherheit auch per Zeitgeber (versteckte/gedrosselte Fenster)
+    let pending = false;
+    const schedule = () => {
+      if (pending) return;
+      pending = true;
+      let fired = false;
+      const go = () => {
+        if (fired) return;
+        fired = true;
+        pending = false;
+        step(performance.now());
+      };
+      requestAnimationFrame(go);
+      setTimeout(go, 34);
+    };
+    const step = (now) => {
+      const a = this.anim;
+      if (!a || !this.doc) {
+        this.animating = false;
+        return;
+      }
+      const dt = Math.min(48, now - last);
+      last = now;
+      const k = 1 - Math.exp(-dt / 55);
+      const lz = Math.log(this.zoom);
+      const lt = Math.log(a.target);
+      const zoomDone = Math.abs(lt - lz) < 0.003;
+      this.zoom = zoomDone ? a.target : Math.exp(lz + (lt - lz) * k);
+      let done = zoomDone;
+      if (a.mode === 'anchor') {
+        this.panX = a.cx - a.dx * this.zoom;
+        this.panY = a.cy - a.dy * this.zoom;
+      } else {
+        const ex = a.panX - this.panX;
+        const ey = a.panY - this.panY;
+        const panDone = Math.abs(ex) < 0.5 && Math.abs(ey) < 0.5;
+        this.panX = panDone ? a.panX : this.panX + ex * k;
+        this.panY = panDone ? a.panY : this.panY + ey * k;
+        done = zoomDone && panDone;
+      }
+      if (done) {
+        // am Ende auf ganze Bildschirmpixel legen, sonst werden Bildpixel ungleich breit
+        if (this.zoom >= 1) {
+          this.panX = Math.round(this.panX);
+          this.panY = Math.round(this.panY);
+        }
+        this.clampPan();
+        this.anim = null;
+        this.animating = false;
+      }
+      this.draw();
+      this.onChange?.();
+      if (!done) schedule();
+    };
+    schedule();
   }
   panBy(dx, dy) {
+    this.stopAnim();
     this.panX += dx;
     this.panY += dy;
     this.clampPan();

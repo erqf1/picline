@@ -144,6 +144,18 @@ module.exports = function selftest(win, dir) {
       p = await js(`[T.P.app.viewMode, getComputedStyle(document.getElementById('cats')).display]`);
       check('Knopf Bearbeiten', p[0] === false && p[1] !== 'none', JSON.stringify(p));
 
+      // 10d) Weiches Zoomen: gleitet zum Ziel, der Punkt unter der Maus bleibt stehen
+      p = await js(`(async () => { const v = T.P.app.view; v.setZoom(2); const before = v.toDoc(300, 200); v.zoomBy(1.25 ** 3, 300, 200); await new Promise((r) => setTimeout(r, 80)); const mid = v.zoom; await new Promise((r) => setTimeout(r, 700)); const after = v.toDoc(300, 200); return [mid, v.zoom, Math.abs(after.x - before.x) + Math.abs(after.y - before.y)]; })()`);
+      check('Weiches Zoomen', p[0] > 2 && p[0] < 3.9 && Math.abs(p[1] - 3.90625) < 0.001 && p[2] < 0.5, JSON.stringify(p));
+
+      // 10c) Vollbild: nur das Bild
+      await js(`T.P.applyFullscreen(true); 1`);
+      await new Promise((r) => setTimeout(r, 300));
+      p = await js(`[getComputedStyle(document.getElementById('topbar')).display, getComputedStyle(document.getElementById('statusbar')).display, getComputedStyle(document.getElementById('fs-bar')).display]`);
+      check('Vollbild zeigt nur das Bild', p[0] === 'none' && p[1] === 'none' && p[2] === 'flex', JSON.stringify(p));
+      await shot('08-vollbild');
+      await js(`T.P.applyFullscreen(false); 1`);
+
       // 11) Effekt
       await js(`T.P.app.tools.set('brush'); 1`);
       p = await js(`(async () => { const { EFFECTS } = {}; return 1; })()`);

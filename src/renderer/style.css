@@ -104,6 +104,17 @@ body.viewing .quick { flex: 1; justify-content: flex-end; }
 .rot-left .ico { transform: rotate(-90deg); }
 .rot-right .ico { transform: rotate(90deg); }
 
+/* ---------------------------------------------------------------- Vollbild: nur das Bild */
+body.fullscreen #topbar, body.fullscreen .tabrow, body.fullscreen #side, body.fullscreen #statusbar { display: none !important; }
+body.fullscreen .stage { background: #000; }
+.fs-bar { display: none; }
+body.fullscreen .fs-bar { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 6; display: flex; gap: 2px; padding: 6px; border-radius: 14px;
+  background: rgba(20, 22, 28, 0.78); border: 1px solid rgba(255, 255, 255, 0.12); backdrop-filter: blur(12px); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); transition: opacity 0.25s, transform 0.25s; }
+body.fullscreen .fs-bar .icon-btn { color: #e8eaf0; }
+body.fullscreen .fs-bar .icon-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+body.fullscreen.fs-idle .fs-bar { opacity: 0; transform: translate(-50%, 10px); pointer-events: none; }
+body.fullscreen.fs-idle.viewing .stage canvas.view { cursor: none !important; }
+
 /* ---------------------------------------------------------------- Seitenpanel */
 .side { width: var(--side-w); flex: none; background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; }
 body.no-side .side { display: none; }

@@ -28,6 +28,11 @@ export const app = {
   docs: [],
   doc: null,
   viewMode: false,
+  fullscreen: false,
+  /** nur schauen: Ansehen-Modus oder Vollbild */
+  get looking() {
+    return this.viewMode || this.fullscreen;
+  },
   opts: structuredClone(DEFAULT_OPTS),
   colors: { primary: { r: 17, g: 24, b: 39, a: 255 }, secondary: { r: 255, g: 255, b: 255, a: 255 } },
   view: null,
@@ -60,6 +65,7 @@ function buildShell() {
     <section id="stage" class="stage" tabindex="-1">
       <div id="welcome" class="welcome hidden"></div>
       <div id="drop-hint" class="drop-hint hidden"></div>
+      <div id="fs-bar" class="fs-bar"></div>
     </section>
     <aside id="side" class="side"></aside>
   </main>
@@ -179,8 +185,8 @@ function viewMenu() {
   return [
     { label: t('zoomIn'), shortcut: k('Mod+='), disabled: !hasDoc(), run: () => v.zoomStep(1) },
     { label: t('zoomOut'), shortcut: k('Mod+-'), disabled: !hasDoc(), run: () => v.zoomStep(-1) },
-    { label: t('zoomFit'), shortcut: k('Mod+0'), disabled: !hasDoc(), run: () => v.fit() },
-    { label: t('zoom100'), shortcut: k('Mod+1'), disabled: !hasDoc(), run: () => v.setZoom(1) },
+    { label: t('zoomFit'), shortcut: k('Mod+0'), disabled: !hasDoc(), run: () => v.fit(true) },
+    { label: t('zoom100'), shortcut: k('Mod+1'), disabled: !hasDoc(), run: () => v.zoomSmooth(1) },
     '-',
     { label: t('pixelGrid'), shortcut: k("Mod+'"), checked: s.grid !== false, run: () => setView({ grid: s.grid === false }) },
     { label: t('gridEvery'), submenu: () => [0, 4, 8, 16, 32, 64].map((n) => ({ label: n ? t('gridEveryN', { n }) : t('off'), checked: s.gridEvery === n, run: () => setView({ gridEvery: n }) })) },
@@ -189,7 +195,7 @@ function viewMenu() {
     { label: t('checker'), submenu: () => ['light', 'dark'].map((c) => ({ label: t(`checker_${c}`), checked: s.checker === c, run: () => setView({ checker: c }) })) },
     '-',
     { label: t('showPanel'), shortcut: k('Tab'), checked: !document.body.classList.contains('no-side'), run: toggleSide },
-    { label: t('fullscreen'), shortcut: 'F11', run: () => (WEB ? toggleWebFullscreen() : api.toggleFullscreen()) },
+    { label: t('fullscreen'), shortcut: 'F11', checked: !!app.fullscreen, run: () => setFullscreen(!app.fullscreen) },
   ];
 }
 function helpMenu() {
@@ -217,6 +223,7 @@ function buildQuick() {
   btn('q-paste', 'paste', `${t('paste')} (${k('Mod+V')})`, () => pasteImage(), t('paste'));
   btn('q-undo', 'undo', `${t('undo')} (${k('Mod+Z')})`, undo);
   btn('q-redo', 'redo', `${t('redo')} (${k(MAC() ? 'Mod+Shift+Z' : 'Mod+Y')})`, redo);
+  btn('q-full', 'expand', `${t('fullscreen')} (F11)`, () => setFullscreen(!app.fullscreen));
   const mode = h('button', { class: 'mode-btn', id: 'q-mode' });
   mode.addEventListener('click', () => setMode(!app.viewMode));
   q.append(mode);
@@ -241,7 +248,7 @@ function buildZoomBar() {
   });
   btn('q-tile', 'tile', t('tilePreview'), () => setView({ tile: !app.settings.tile }));
   z.append(h('span', { class: 'qsep' }));
-  btn('q-fit', 'fit', `${t('zoomFit')} (${k('Mod+0')})`, () => app.view.fit());
+  btn('q-fit', 'fit', `${t('zoomFit')} (${k('Mod+0')})`, () => app.view.fit(true));
   btn('q-zoomout', 'zoomOut', t('zoomOut'), () => app.view.zoomStep(-1));
   // Regler logarithmisch: 1 % … 102 400 %
   const range = h('input', { type: 'range', id: 'q-zrange', min: -6.64, max: 10, step: 0.01, value: 0, title: t('zoom') });
@@ -251,8 +258,8 @@ function buildZoomBar() {
   const pct = h('button', { class: 'zoom-btn menu-anchor', id: 'q-zoom', title: t('zoom') });
   pct.addEventListener('click', () => {
     const r = pct.getBoundingClientRect();
-    const list = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128].map((v) => ({ label: `${Math.round(v * 100)} %`, run: () => app.view.setZoom(v) }));
-    showMenu([{ label: t('zoomFit'), run: () => app.view.fit() }, '-', ...list], r.left - 60, r.top - 330);
+    const list = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128].map((v) => ({ label: `${Math.round(v * 100)} %`, run: () => app.view.zoomSmooth(v) }));
+    showMenu([{ label: t('zoomFit'), run: () => app.view.fit(true) }, '-', ...list], r.left - 60, r.top - 330);
   });
   z.append(pct);
   refreshQuick();
@@ -275,6 +282,7 @@ function refreshQuick() {
   $('#q-mirror')?.classList.toggle('on', app.opts.mirror !== 'none');
   $('#q-tile')?.classList.toggle('on', !!app.settings.tile);
   $('#q-side')?.classList.toggle('on', !document.body.classList.contains('no-side'));
+  $('#q-full')?.classList.toggle('hidden', !d);
   const mb = $('#q-mode');
   if (mb) {
     mb.classList.toggle('hidden', !d);
@@ -878,7 +886,7 @@ export function resizeCanvasTo(w, hh, anchor = 'c', fill = null) {
 }
 app.resizeCanvasTo = resizeCanvasTo;
 function afterResize() {
-  app.view.fit();
+  app.view.fit(true);
   app.tools.docChanged();
   edited();
 }
@@ -978,7 +986,7 @@ function resetColors() {
 function setView(o) {
   if ('grid' in o) app.settings.grid = o.grid;
   Object.assign(app.settings, o);
-  const edit = !app.viewMode;
+  const edit = !app.looking;
   app.view.setOptions({ grid: app.settings.grid !== false && edit, gridEvery: edit ? app.settings.gridEvery : 0, tile: edit && app.settings.tile, checker: app.settings.checker, gridMin: app.settings.gridMin, smoothDown: app.settings.smoothDown });
   refreshQuick();
   saveSettings();
@@ -1015,6 +1023,55 @@ function toggleSide() {
   app.settings.hideSide = document.body.classList.contains('no-side');
   saveSettings();
   refreshQuick();
+}
+// ---------------------------------------------------------------- Vollbild: nur das Bild
+function setFullscreen(on) {
+  api.setFullscreen(!!on);
+  // im Browser kann es abgelehnt werden - dann trotzdem die Oberfläche ausblenden
+  if (WEB) applyFullscreen(!!on);
+}
+function applyFullscreen(on) {
+  if (app.fullscreen === on) return;
+  app.fullscreen = on;
+  document.body.classList.toggle('fullscreen', on);
+  applyLook();
+  setView({});
+  app.tools.updateCursor();
+  requestAnimationFrame(() => {
+    app.view.resize();
+    app.view.fit(true);
+  });
+  if (on) showFsBar();
+  refreshQuick();
+}
+app.applyFullscreen = applyFullscreen;
+let fsTimer = null;
+/** Leiste unten im Vollbild: erscheint bei Mausbewegung, verschwindet nach 2,5 s (mit dem Mauszeiger) */
+function showFsBar() {
+  if (!app.fullscreen) return;
+  document.body.classList.remove('fs-idle');
+  clearTimeout(fsTimer);
+  fsTimer = setTimeout(() => {
+    if (app.fullscreen && !$('#fs-bar').matches(':hover')) document.body.classList.add('fs-idle');
+  }, 2500);
+}
+function buildFsBar() {
+  const bar = $('#fs-bar');
+  bar.innerHTML = '';
+  const btn = (ic, title, run, cls = '') => {
+    const b = h('button', { class: `icon-btn ${cls}`, title, html: icon(ic, 18) });
+    b.addEventListener('click', run);
+    bar.append(b);
+    return b;
+  };
+  if (!WEB) {
+    btn('up', t('prevImage'), () => siblingImage(-1), 'rot-left');
+    btn('up', t('nextImage'), () => siblingImage(1), 'rot-right');
+  }
+  btn('zoomOut', t('zoomOut'), () => app.view.zoomStep(-1));
+  btn('fit', t('zoomFit'), () => app.view.fit(true));
+  btn('zoom', t('zoomIn'), () => app.view.zoomStep(1));
+  btn('close', `${t('fullscreenExit')} (Esc)`, () => setFullscreen(false));
 }
 function toggleWebFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen();
@@ -1104,8 +1161,8 @@ function onKey(e) {
       '=': () => app.view.zoomStep(1),
       '+': () => app.view.zoomStep(1),
       '-': () => app.view.zoomStep(-1),
-      0: () => app.view.fit(),
-      1: () => app.view.setZoom(1),
+      0: () => app.view.fit(true),
+      1: () => app.view.zoomSmooth(1),
       "'": () => setView({ grid: app.settings.grid === false }),
       ']': () => app.doc && app.layerOps.move(1),
       '[': () => app.doc && app.layerOps.move(-1),
@@ -1118,7 +1175,8 @@ function onKey(e) {
     return;
   }
   if (e.key === 'F1') return run(() => D.shortcutsDialog(app));
-  if (e.key === 'F11') return run(() => (WEB ? toggleWebFullscreen() : api.toggleFullscreen()));
+  if (e.key === 'F11') return run(() => setFullscreen(!app.fullscreen));
+  if (e.key === 'Escape' && app.fullscreen && !inField && !app.tools.text && !app.tools.float) return run(() => setFullscreen(false));
   if (inField) return;
   if (e.key === 'Escape') return app.tools.cancel() && e.preventDefault();
   if (e.key === 'Enter') {
@@ -1246,11 +1304,12 @@ function applyLook() {
   const dark = app.settings.mode === 'dark' || (app.settings.mode === 'system' && systemDark);
   const vars = applyTheme(app.settings.accent, dark);
   // Raster liegt auf dem Bild, nicht auf der Oberfläche: ein Grau, das auf hell und dunkel sichtbar ist
-  app.view?.setColors({ bg: vars.canvasBg, grid: 'rgba(118,118,128,0.42)' });
+  app.view?.setColors({ bg: app.fullscreen ? '#000000' : vars.canvasBg, grid: 'rgba(118,118,128,0.42)' });
 }
 app.applyLook = applyLook;
 let systemDark = true;
 app.rebuild = () => {
+  buildFsBar();
   buildMenubar();
   buildQuick();
   buildZoomBar();
@@ -1300,6 +1359,9 @@ async function start() {
   });
   window.addEventListener('blur', () => app.tools.setSpace(false));
   setupDrop();
+  api.onFullscreen?.((on) => applyFullscreen(on));
+  $('#stage').addEventListener('pointermove', showFsBar);
+  $('#fs-bar').addEventListener('pointerenter', showFsBar);
   if (WEB) setupWebPaste();
   api.onOpenFiles((list) => openPaths(list));
   api.onClosing(onClosing);
@@ -1310,6 +1372,6 @@ async function start() {
   const initial = await api.initialFiles();
   if (initial?.length) await openPaths(initial);
   renderWelcome();
-  if (INFO.selfTest) window.__picline = { app, newDoc, save, cropTo, resizeImageTo, resizeCanvasTo, openBytes, placeCanvas, encode };
+  if (INFO.selfTest) window.__picline = { applyFullscreen, app, newDoc, save, cropTo, resizeImageTo, resizeCanvasTo, openBytes, placeCanvas, encode };
 }
 start();

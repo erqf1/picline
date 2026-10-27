@@ -160,6 +160,7 @@ module.exports = {
   checker: ['Transparency checkerboard', 'Schachbrett für Durchsichtiges', 'Damero de transparencia', 'Damier de transparence', 'Scacchiera trasparenza', 'Xadrez de transparência', 'Transparantieraster', 'Szachownica przezroczystości', 'Saydamlık dama tahtası', 'Шахматка прозрачности', '透明部分の市松模様', '透明棋盘格'],
   checker_light: ['Light', 'Hell', 'Claro', 'Clair', 'Chiaro', 'Claro', 'Licht', 'Jasna', 'Açık', 'Светлая', '明るい', '浅色'],
   checker_dark: ['Dark', 'Dunkel', 'Oscuro', 'Sombre', 'Scuro', 'Escuro', 'Donker', 'Ciemna', 'Koyu', 'Тёмная', '暗い', '深色'],
+  fullscreenExit: ['Exit full screen', 'Vollbild beenden', 'Salir de pantalla completa', 'Quitter le plein écran', 'Esci da schermo intero', 'Sair da tela cheia', 'Volledig scherm sluiten', 'Zamknij pełny ekran', 'Tam ekrandan çık', 'Выйти из полноэкранного режима', '全画面を終了', '退出全屏'],
   showPanel: ['Side panel', 'Seitenpanel', 'Panel lateral', 'Panneau latéral', 'Pannello laterale', 'Painel lateral', 'Zijpaneel', 'Panel boczny', 'Yan panel', 'Боковая панель', 'サイドパネル', '侧边栏'],
   fullscreen: ['Full screen', 'Vollbild', 'Pantalla completa', 'Plein écran', 'Schermo intero', 'Tela cheia', 'Volledig scherm', 'Pełny ekran', 'Tam ekran', 'Во весь экран', '全画面', '全屏'],
 

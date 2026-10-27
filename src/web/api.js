@@ -58,6 +58,15 @@ window.api = {
   updateReady: () => {},
   setTitle: () => {},
   toggleFullscreen: () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.()),
+  setFullscreen: async (on) => {
+    try {
+      if (on && !document.fullscreenElement) await document.documentElement.requestFullscreen();
+      if (!on && document.fullscreenElement) await document.exitFullscreen();
+    } catch {
+      // nicht erlaubt (z. B. iPhone)
+    }
+  },
+  onFullscreen: (cb) => document.addEventListener('fullscreenchange', () => cb(!!document.fullscreenElement)),
 
   openDialog: async ({ multi = true } = {}) => {
     if (fsAccess) {
