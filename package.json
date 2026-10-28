@@ -1,7 +1,7 @@
 {
   "name": "picline",
   "productName": "Picline",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Bildeditor für Zeichnungen, Fotos und Pixelgrafik: Pinsel, Pixelstift, Formen, Text, Ebenen und Zoom bis auf einzelne Pixel.",
   "main": "src/main.js",
   "private": true,
@@ -12,7 +12,7 @@
     "build": "node build.mjs && electron-builder",
     "build:win": "node build.mjs && electron-builder -w"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": {
     "name": "erqf1",
     "email": "erqf1@users.noreply.github.com"

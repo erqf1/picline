@@ -332,6 +332,6 @@ export function aboutDialog(app, info) {
     h('div', { class: 'about-name', text: 'Picline' }),
     h('div', { class: 'about-ver', text: `${t('version')} ${info.version || ''}` }),
     h('p', { text: t('aboutText') }),
-    h('p', { class: 'dlg-note', html: `${icon('globe', 14)} mert.win/pic · MIT` }));
+    h('p', { class: 'dlg-note', html: `${icon('globe', 14)} mert.win/pic · Apache 2.0` }));
   return dialog({ title: t('about'), body, buttons: [{ label: t('close'), value: 'ok', primary: true }] });
 }

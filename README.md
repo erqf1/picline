@@ -2,7 +2,7 @@
 
 Bildeditor für Zeichnungen, Fotos und Pixelgrafik – für Windows, Linux, macOS und den Browser: Pinsel, Pixelstift, Formen, Text, Ebenen und Effekte – mit Zoom bis aufs einzelne Pixel.
 
-**[Releases](https://github.com/erqf1/picline/releases)** · **[Im Browser öffnen](https://mert.win/pic/app/)** · Lizenz: [MIT](LICENSE)
+**[Releases](https://github.com/erqf1/picline/releases)** · **[Im Browser öffnen](https://mert.win/pic/app/)** · Lizenz: [Apache 2.0](LICENSE)
 
 ## Fertige Pakete
 
