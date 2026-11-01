@@ -92,9 +92,10 @@ export function icon(name, size = 18, extra = '') {
   return `<svg class="ico${extra ? ` ${extra}` : ''}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 }
 
-/** Das Picline-Logo (Pinsel und drei Pixel auf Acryl) - gleiches Bild wie assets/icon.png */
+/** Das Picline-Logo (Pinsel und drei Pixel auf Farbverlauf) - gleiches Bild wie assets/icon.png */
 export function logoSvg(size = 64) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true"><defs><clipPath id="pl-c"><rect x="4" y="4" width="56" height="56" rx="12.5"/></clipPath><filter id="pl-b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9.3"/></filter></defs><g clip-path="url(#pl-c)"><rect x="4" y="4" width="56" height="56" fill="#28252c"/><g filter="url(#pl-b)"><circle cx="46.6" cy="14.1" r="19.0" fill="#ee54aa"/><circle cx="14.1" cy="15.2" r="17.9" fill="#7e50f4"/><circle cx="15.2" cy="51.0" r="20.2" fill="#38aac8"/><circle cx="51.0" cy="51.0" r="19.0" fill="#f8965a"/><circle cx="32.0" cy="32.0" r="11.2" fill="#502c6e"/></g><rect x="4" y="4" width="56" height="56" fill="#1e1c22" opacity=".26"/></g><rect x="4.22" y="4.22" width="55.55" height="55.55" rx="12.5" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="0.50"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="pl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6fb1"/><stop offset="1" stop-color="#7c4dff"/></linearGradient></defs>
+<rect x="4" y="4" width="56" height="56" rx="14" fill="url(#pl-g)"/>
 <rect x="13" y="13" width="8" height="8" rx="1.2" fill="#fff" opacity=".95"/><rect x="21" y="21" width="8" height="8" rx="1.2" fill="#fff" opacity=".7"/><rect x="13" y="29" width="8" height="8" rx="1.2" fill="#fff" opacity=".45"/>
 <path d="M47.5 15.5a3.4 3.4 0 0 1 4.8 4.8L37.6 35l-4.8-4.8z" fill="#fff"/>
 <path d="M31.6 32.4c-3.8-.5-6.9 2.2-7.2 5.8-.3 2.9-1.5 4.8-3.8 6 6.2 2.2 12.6.7 14.8-3.6 1-2 .7-4.1-.3-5.7z" fill="#fff"/></svg>`;
