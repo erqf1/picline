@@ -20,7 +20,7 @@ const MAC = () => INFO.platform === 'darwin';
 
 // ---------------------------------------------------------------- Zustand
 const DEFAULTS = {
-  language: null, mode: 'system', accent: '#8b5cf6', wheel: 'zoom', checker: 'none', gridMin: 8, gridEvery: 0, tile: false, jpgQuality: 92,
+  language: null, mode: 'system', look: 'standard', accent: '#8b5cf6', wheel: 'zoom', checker: 'none', gridMin: 8, gridEvery: 0, tile: false, jpgQuality: 92,
   fileIcons: 'auto', recent: [], palette: 'basic', recentColors: [], newW: 1280, newH: 720, newBg: 'white', smoothDown: true, panels: {},
 };
 export const app = {
@@ -1302,9 +1302,11 @@ function saveNow() {
 // ---------------------------------------------------------------- Start
 function applyLook() {
   const dark = app.settings.mode === 'dark' || (app.settings.mode === 'system' && systemDark);
-  const vars = applyTheme(app.settings.accent, dark);
+  const acryl = app.settings.look === 'acryl';
+  const vars = applyTheme(app.settings.accent, dark, app.settings.look);
   // Raster liegt auf dem Bild, nicht auf der Oberfläche: ein Grau, das auf hell und dunkel sichtbar ist
-  app.view?.setColors({ bg: app.fullscreen ? '#000000' : vars.canvasBg, grid: 'rgba(118,118,128,0.42)' });
+  // Acryl: Leinwand bleibt um das Bild herum durchsichtig, der Rauch kommt von der Oberfläche
+  app.view?.setColors({ bg: app.fullscreen ? '#000000' : acryl ? 'transparent' : vars.canvasBg, grid: 'rgba(118,118,128,0.42)' });
 }
 app.applyLook = applyLook;
 let systemDark = true;

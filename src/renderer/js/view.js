@@ -277,8 +277,11 @@ export class View {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
-    g.fillStyle = this.colors.bg;
-    g.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    g.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.colors.bg !== 'transparent') {
+      g.fillStyle = this.colors.bg;
+      g.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
     const d = this.doc;
     if (!d) return;
     const z = this.zoom;

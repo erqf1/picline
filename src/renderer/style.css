@@ -294,3 +294,8 @@ kbd { font: 11px var(--ui-font); padding: 2px 6px; border: 1px solid var(--line)
   .cat-btn { min-width: 42px; }
   .zoombar input[type="range"], #q-tile, #q-mirror { display: none; }
 }
+
+/* ---------------------------------------------------------------- Stil Acryl */
+:root[data-look="acryl"] body::before { content: ""; position: fixed; inset: -60px; z-index: -1; pointer-events: none;
+  background: var(--smoke, none) center / cover no-repeat; filter: blur(20px); }
+:root[data-look="acryl"] .menu, :root[data-look="acryl"] .dialog, :root[data-look="acryl"] .toast { background: var(--popup); backdrop-filter: blur(22px) saturate(1.3); }

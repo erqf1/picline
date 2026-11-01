@@ -284,6 +284,10 @@ export async function settingsDialog(app) {
       set('mode', v);
       app.applyLook();
     })),
+    rowS(t('look'), sel([['standard', t('lookStandard')], ['acryl', t('lookAcryl')]], s.look || 'standard', (v) => {
+      set('look', v);
+      app.applyLook();
+    })),
     rowS(t('accent'), accents),
     h('div', { class: 'set-title', text: t('setWork') }),
     rowS(t('wheel'), sel([['zoom', t('wheelZoom')], ['scroll', t('wheelScroll')]], s.wheel, (v) => set('wheel', v)), t('wheelHint')),
