@@ -94,7 +94,7 @@ export function icon(name, size = 18, extra = '') {
 
 /** Das Picline-Logo (Pinsel und drei Pixel auf Farbverlauf) - gleiches Bild wie assets/icon.png */
 export function logoSvg(size = 64) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="pl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6fb1"/><stop offset="1" stop-color="#7c4dff"/></linearGradient></defs>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="pl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d27cf5"/><stop offset="1" stop-color="#9a2bd6"/></linearGradient></defs>
 <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#pl-g)"/>
 <rect x="13" y="13" width="8" height="8" rx="1.2" fill="#fff" opacity=".95"/><rect x="21" y="21" width="8" height="8" rx="1.2" fill="#fff" opacity=".7"/><rect x="13" y="29" width="8" height="8" rx="1.2" fill="#fff" opacity=".45"/>
 <path d="M47.5 15.5a3.4 3.4 0 0 1 4.8 4.8L37.6 35l-4.8-4.8z" fill="#fff"/>
