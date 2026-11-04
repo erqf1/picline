@@ -1,7 +1,7 @@
 {
   "name": "picline",
   "productName": "Picline",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Bildeditor für Zeichnungen, Fotos und Pixelgrafik: Pinsel, Pixelstift, Formen, Text, Ebenen und Zoom bis auf einzelne Pixel.",
   "main": "src/main.js",
   "private": true,
@@ -18,7 +18,7 @@
     "email": "erqf1@users.noreply.github.com"
   },
   "devDependencies": {
-    "electron": "44.9.3",
+    "electron": "43.8.7",
     "electron-builder": "^26.18.0",
     "esbuild": "^0.28.2"
   },
@@ -26,7 +26,7 @@
     "electron-updater": "^6.8.11"
   },
   "allowScripts": {
-    "electron@44.9.3": true,
+    "electron@43.8.7": true,
     "esbuild@0.28.2": true
   },
   "repository": {
@@ -231,7 +231,10 @@
           ]
         }
       ],
-      "artifactName": "Picline-${version}-mac-${arch}.${ext}"
+      "artifactName": "Picline-${version}-mac-${arch}.${ext}",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "minimumSystemVersion": "12.0"
     }
   }
 }
