@@ -175,6 +175,22 @@ module.exports = function selftest(win, dir) {
       await js(`T.P.app.settings.mode = 'light'; T.P.app.applyLook(); 1`);
       await shot('06-hell');
       await js(`T.P.app.settings.mode = 'dark'; T.P.app.applyLook(); 1`);
+      // Als Standard-App festlegen: nur lesen und anzeigen, nichts umstellen
+      const st = await js('window.api.defaults.state()');
+      check('Standard-Apps: Stand für 8 Gruppen', st && st.groups.length === 8, JSON.stringify(st.groups.map((g) => `${g.id}=${g.mine ? 'Picline' : g.current}`)));
+      await js('T.P.defaultAppsDialog(); 1');
+      let rows = 0;
+      for (let i = 0; i < 40 && rows < 8; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+        rows = await js(`document.querySelectorAll('.defaults-row').length`);
+      }
+      check('Standard-Apps: Fenster listet 8 Gruppen', rows === 8, String(rows));
+      const [w0, h0] = win.getSize();
+      win.setSize(w0 + 1, h0);
+      await new Promise((r) => setTimeout(r, 300));
+      win.setSize(w0, h0);
+      await shot('09-standard-apps');
+      await js(`document.querySelector('.defaults-buttons .btn:not(.primary)').click(); 1`);
     } catch (e) {
       results.push(`FEHL Ausnahme: ${e.message || e}`);
     }

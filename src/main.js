@@ -158,6 +158,9 @@ function buildMenu() {
 }
 
 // ---------------------------------------------------------------- IPC: Einstellungen
+// "Als Standard-App festlegen"
+require('./defaults').setupDefaults({ ...require('./shared/default-types'), ipcMain, shell });
+
 ipcMain.handle('settings:get', () => settings);
 ipcMain.handle('settings:set', (_e, next) => {
   const iconsBefore = settings.fileIcons;

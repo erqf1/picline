@@ -13,6 +13,10 @@ const on = (channel, cb) => {
 
 contextBridge.exposeInMainWorld('api', {
   info: () => invoke('app:info'),
+  defaults: {
+    state: () => invoke('defaults:state'),
+    apply: (ids) => invoke('defaults:apply', ids),
+  },
   getSettings: () => invoke('settings:get'),
   setSettings: (s) => invoke('settings:set', s),
   initialFiles: () => invoke('app:initial-files'),

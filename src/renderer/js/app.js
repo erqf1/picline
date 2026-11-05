@@ -8,6 +8,8 @@ import { Tools, TOOLS, TOOL_KEYS, DEFAULT_OPTS } from './tools.js';
 import { Doc, Layer, makeCanvas, cloneCanvas, clampRect, selectionPath } from './doc.js';
 import { decode, decodeCanvas, encode, canvasToPng, OPEN_EXT, SAVE_FORMATS, extOf, formatForExt } from './imageio.js';
 import { liftSelection } from './floating.js';
+import { openDefaultsDialog } from './defaults-dialog.js';
+import DSTR from '../../shared/default-strings.js';
 import { parseHex, toHex } from './color.js';
 import { Side, CATS, catLabel } from './panels.js';
 import * as D from './dialogs.js';
@@ -85,12 +87,17 @@ function buildMenubar() {
       { label: t('menuLayer'), submenu: layerMenu }, { label: t('menuEffects'), submenu: effectsMenu }, { label: t('menuView'), submenu: viewMenu },
       '-', { label: t('newImage'), shortcut: k('Mod+N'), run: newImageDialog }, { label: t('open'), shortcut: k('Mod+O'), run: openDialog },
       { label: t('save'), shortcut: k('Mod+S'), disabled: !hasDoc(), run: () => save(app.doc) }, { label: t('saveAs'), shortcut: k('Mod+Shift+S'), disabled: !hasDoc(), run: () => save(app.doc, { as: true }) },
-      '-', { label: t('settings'), shortcut: k('Mod+,'), run: () => D.settingsDialog(app) }, { label: t('menuHelp'), submenu: helpMenu },
+      '-', { label: t('settings'), shortcut: k('Mod+,'), run: () => D.settingsDialog(app) },
+      ...(window.api.defaults ? [{ label: DSTR.t(app.settings.language, 'menu'), run: defaultAppsDialog }] : []),
+      { label: t('menuHelp'), submenu: helpMenu },
     ], r.left, r.bottom + 4);
     b.classList.add('open');
   };
 }
 const k = (spec) => keyLabel(spec, MAC());
+function defaultAppsDialog() {
+  openDefaultsDialog({ platform: app.info.platform, state: window.api.defaults.state, apply: window.api.defaults.apply }, app.settings.language);
+}
 const hasDoc = () => !!app.doc;
 
 function fileMenu() {
@@ -1376,6 +1383,6 @@ async function start() {
   const initial = await api.initialFiles();
   if (initial?.length) await openPaths(initial);
   renderWelcome();
-  if (INFO.selfTest) window.__picline = { applyFullscreen, app, newDoc, save, cropTo, resizeImageTo, resizeCanvasTo, openBytes, placeCanvas, encode };
+  if (INFO.selfTest) window.__picline = { applyFullscreen, defaultAppsDialog, app, newDoc, save, cropTo, resizeImageTo, resizeCanvasTo, openBytes, placeCanvas, encode };
 }
 start();

@@ -68,6 +68,8 @@
 ; das Programmsymbol). Dazu "Mit Picline bearbeiten" im Kontextmenü des Typs.
 !macro piclineAddType EXT NAME
   WriteRegStr SHCTX "Software\Classes\.${EXT}\OpenWithProgids" "Picline.${NAME}" ""
+  ; für "Standard-Apps" in den Windows-Einstellungen
+  WriteRegStr SHCTX "Software\Picline\Capabilities\FileAssociations" ".${EXT}" "Picline.${NAME}"
   WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\.${EXT}\shell\Picline" "" "$1"
   WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\.${EXT}\shell\Picline" "Icon" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
   WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\.${EXT}\shell\Picline\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
@@ -112,7 +114,12 @@
   !insertmacro piclineProgIds piclineAddProgId
   WriteRegStr SHCTX "Software\Classes\Applications\${APP_EXECUTABLE_FILENAME}" "FriendlyAppName" "Picline"
   WriteRegStr SHCTX "Software\Classes\Applications\${APP_EXECUTABLE_FILENAME}\shell\open\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
+  DeleteRegKey SHCTX "Software\Picline\Capabilities\FileAssociations"
   !insertmacro piclineTypes piclineAddType
+  WriteRegStr SHCTX "Software\Picline\Capabilities" "ApplicationName" "Picline"
+  WriteRegStr SHCTX "Software\Picline\Capabilities" "ApplicationDescription" "Paint, pixel, crop"
+  WriteRegStr SHCTX "Software\Picline\Capabilities" "ApplicationIcon" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
+  WriteRegStr SHCTX "Software\RegisteredApplications" "Picline" "Software\Picline\Capabilities"
   !insertmacro piclineOwn piclineAddOwn
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   Pop $1
@@ -124,6 +131,9 @@
     !insertmacro piclineTypes piclineRemoveType
     !insertmacro piclineProgIds piclineRemoveProgId
     DeleteRegKey SHCTX "Software\Classes\Applications\${APP_EXECUTABLE_FILENAME}"
+    DeleteRegKey SHCTX "Software\Picline\Capabilities"
+    DeleteRegKey /ifempty SHCTX "Software\Picline"
+    DeleteRegValue SHCTX "Software\RegisteredApplications" "Picline"
     System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   ${endIf}
 !macroend
