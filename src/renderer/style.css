@@ -122,8 +122,9 @@ body.no-side .side { display: none; }
 .side-body { padding: 6px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
 .side-group { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
 .side-title { font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 74px; padding: 10px 4px 8px; border: 2px solid transparent; border-radius: 12px; background: var(--panel2); color: var(--text); font-size: 11.5px; line-height: 1.2; text-align: center; cursor: default; }
+/* minmax(0, 1fr): lange Wörter (Weichzeichnen, Прямоугольник ...) machen die Spalten nicht breiter als das Panel */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 74px; padding: 10px 3px 8px; border: 2px solid transparent; border-radius: 12px; background: var(--panel2); color: var(--text); font-size: 11.5px; line-height: 1.2; text-align: center; overflow-wrap: anywhere; hyphens: auto; cursor: default; }
 .tile .ico { color: var(--muted); }
 .tile:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .tile:hover .ico { color: var(--text); }
