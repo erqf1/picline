@@ -8,7 +8,7 @@ Bildeditor für Zeichnungen, Fotos und Pixelgrafik – für Windows, Linux, macO
 
 | System | Optionen |
 | --- | --- |
-| Windows | **Installer** (`Picline-Setup-*.exe`, trägt Picline bei „Öffnen mit“ für Bilder ein und fügt „Mit Picline bearbeiten“ ins Kontextmenü) oder **portabel** (`Picline-*-portable.exe`, keine Installation) |
+| Windows | **Installer** (`Picline-Setup-*.exe`, trägt Picline bei „Öffnen mit“ für Bilder ein und fügt „Mit Picline bearbeiten“ ins Kontextmenü; das Desktop-Symbol entsteht nur bei der ersten Installation – Updates lassen es an seinem Platz, gelöscht bleibt gelöscht) oder **portabel** (`Picline-*-portable.exe`, keine Installation) |
 | Linux | `.deb` (Debian/Ubuntu), `.pacman` (Arch) oder `.tar.gz` (portabel, jede Distribution) |
 | macOS | `.zip` für Apple Silicon oder Intel (App-Bundle, immer portabel) |
 
@@ -77,4 +77,11 @@ npx electron tools/make-icon.js        # App-Symbol neu erzeugen
 python tools/make-filetype-icons.py    # Dateisymbole + build/installer.nsh
 ```
 
-Selbsttest (malt unsichtbar mit echten Zeiger-Ereignissen, prüft Pixel, macht Bilder): `npx electron . --selftest <ordner>`. Bilder für die Website: `npx electron . --siteshots <ordner>`.
+Selbsttest (malt unsichtbar mit echten Zeiger-Ereignissen, prüft Pixel, macht Bilder): `npx electron . --selftest <ordner>`. Unter Linux ohne Bildschirm: `xvfb-run -a npx electron . --selftest <ordner> --no-sandbox --use-gl=angle --use-angle=swiftshader`. Der Workflow „Test“ macht das bei jedem Push auf Windows, Linux und macOS und prüft unter Windows zusätzlich den Installer (`tools/installer-test.ps1`: Desktop-Symbol nur bei der Erst-Installation, nie bei Updates, weg beim Deinstallieren).
+
+Bilder für die Website (30 Stück: je Sprache Pixelgrafik, Malen, Pinsel-Stile, Formen, Text, Ebenen, Effekte, Zuschneiden, Exportieren, Einstellungen, hell, Acryl dunkel/hell, Ansehen):
+
+```bash
+npx electron . --siteshots shots
+python tools/webp.py shots website-updates/img
+```

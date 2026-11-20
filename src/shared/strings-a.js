@@ -74,7 +74,7 @@ module.exports = {
 
   // Bild
   resizeImage: ['Resize image…', 'Bildgröße ändern…', 'Cambiar tamaño de imagen…', 'Redimensionner l’image…', 'Ridimensiona immagine…', 'Redimensionar imagem…', 'Afbeeldingsgrootte…', 'Zmień rozmiar obrazu…', 'Görüntüyü boyutlandır…', 'Размер изображения…', '画像サイズの変更…', '调整图像大小…'],
-  canvasSize: ['Canvas size…', 'Leinwandgröße…', 'Tamaño del lienzo…', 'Taille de la zone de travail…', 'Dimensione tela…', 'Tamanho da tela…', 'Canvasgrootte…', 'Rozmiar płótna…', 'Tuval boyutu…', 'Размер холста…', 'キャンバスサイズ…', '画布大小…'],
+  canvasSize: ['Canvas size…', 'Leinwand\u00ADgröße…', 'Tamaño del lienzo…', 'Taille de la zone de travail…', 'Dimensione tela…', 'Tamanho da tela…', 'Canvasgrootte…', 'Rozmiar płótna…', 'Tuval boyutu…', 'Размер холста…', 'キャンバスサイズ…', '画布大小…'],
   crop: ['Crop', 'Zuschneiden', 'Recortar', 'Rogner', 'Ritaglia', 'Cortar', 'Bijsnijden', 'Kadruj', 'Kırp', 'Обрезать', '切り抜き', '裁剪'],
   cropToSelection: ['Crop to selection', 'Auf Auswahl zuschneiden', 'Recortar a la selección', 'Rogner à la sélection', 'Ritaglia alla selezione', 'Cortar para a seleção', 'Bijsnijden tot selectie', 'Kadruj do zaznaczenia', 'Seçime kırp', 'Обрезать по выделению', '選択範囲で切り抜き', '裁剪到选区'],
   autoCrop: ['Trim transparent edges', 'Durchsichtige Ränder abschneiden', 'Recortar bordes transparentes', 'Rogner les bords transparents', 'Rimuovi bordi trasparenti', 'Cortar bordas transparentes', 'Transparante randen bijsnijden', 'Przytnij przezroczyste krawędzie', 'Saydam kenarları kırp', 'Обрезать прозрачные края', '透明な余白を切り抜く', '裁掉透明边缘'],

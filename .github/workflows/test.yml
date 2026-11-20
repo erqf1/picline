@@ -1,0 +1,58 @@
+name: Test
+
+# Selbsttest (unsichtbar, malt mit echten Zeiger-Ereignissen und prüft Pixel) auf Windows, Linux und macOS,
+# dazu unter Windows der Installer-Test: Desktop-Symbol nur bei der Erst-Installation, nie bei Updates.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # hängt der Selbsttest (z. B. Fehlerdialog im unsichtbaren Fenster), nicht 6 Stunden warten
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run bundle
+      # Linux-Runner haben keinen Bildschirm und keine GPU: virtueller X-Server und Software-Rendering
+      - if: runner.os == 'Linux'
+        run: xvfb-run -a -s "-screen 0 1920x1200x24" npx electron . --selftest selftest-out --no-sandbox --use-gl=angle --use-angle=swiftshader
+      - if: runner.os != 'Linux'
+        run: npx electron . --selftest selftest-out
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selftest-${{ matrix.os }}
+          path: selftest-out/*.*
+          if-no-files-found: ignore
+
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run bundle
+      - run: npx electron-builder -w nsis --x64 --publish never
+      # alte Version (1.2.0) zum Prüfen des Updates von dort
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download v1.2.0 --repo "${{ github.repository }}" --pattern "Picline-Setup-1.2.0.exe" --dir old
+      - shell: pwsh
+        run: ./tools/installer-test.ps1 -Old (Resolve-Path old/Picline-Setup-1.2.0.exe).Path

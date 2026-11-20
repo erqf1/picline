@@ -1,7 +1,7 @@
 {
   "name": "picline",
   "productName": "Picline",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Bildeditor für Zeichnungen, Fotos und Pixelgrafik: Pinsel, Pixelstift, Formen, Text, Ebenen und Zoom bis auf einzelne Pixel.",
   "main": "src/main.js",
   "private": true,
@@ -89,7 +89,7 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": false,
       "createStartMenuShortcut": true,
       "include": "build/installer.nsh"
     },

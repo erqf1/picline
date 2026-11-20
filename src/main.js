@@ -13,7 +13,8 @@ const APP_ID = 'win.mert.Picline';
 const REPO = 'erqf1/picline';
 // --selftest <ordner>: Selbsttest; --siteshots <ordner>: Bilder für die Website (beides unsichtbar)
 const testArg = ['--selftest', '--siteshots'].find((a) => process.argv.includes(a));
-const selfTest = testArg ? process.argv[process.argv.indexOf(testArg) + 1] : null;
+// absolut machen: app.setPath() wirft bei relativen Pfaden (z. B. --selftest selftest-out in CI)
+const selfTest = testArg ? path.resolve(process.argv[process.argv.indexOf(testArg) + 1] || 'selftest-out') : null;
 const IMAGE_EXT = /\.(png|jpe?g|jfif|webp|bmp|gif|ico|cur|avif|svg|picline)$/i;
 
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID);

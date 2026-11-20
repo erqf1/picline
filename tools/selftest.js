@@ -20,6 +20,10 @@ module.exports = function selftest(win, dir) {
     fs.writeFileSync(path.join(dir, `${name}.png`), img.toPNG());
   };
   const js = (code) => wc.executeJavaScript(code, true);
+  // Rückgängig/Wiederholen: auf dem Mac ⌘ statt Strg
+  const MOD = process.platform === 'darwin' ? 'metaKey' : 'ctrlKey';
+  // Windows rundet Farben auf manchen Grafikkarten um 1 (128 -> 129)
+  const near = (a, b) => Math.abs(a - b) <= 2;
   const results = [];
   const check = (name, ok, info = '') => {
     results.push(`${ok ? 'ok  ' : 'FEHL'} ${name}${info ? ` (${info})` : ''}`);
@@ -63,10 +67,10 @@ module.exports = function selftest(win, dir) {
       check('Pixelstift setzt genau eine Pixelreihe', p[0][0] === 255 && p[0][3] === 255 && p[1][3] === 255 && p[2][3] === 0 && p[3][3] === 0, JSON.stringify(p));
 
       // 2) Rückgängig / Wiederholen
-      await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true })); 1`);
+      await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ${MOD}: true, bubbles: true })); 1`);
       p = await js(`T.px(5, 2)`);
       check('Rückgängig', p[3] === 0, JSON.stringify(p));
-      await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true })); 1`);
+      await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', ${MOD}: true, bubbles: true })); 1`);
       p = await js(`T.px(5, 2)`);
       check('Wiederholen', p[3] === 255, JSON.stringify(p));
 
@@ -78,7 +82,7 @@ module.exports = function selftest(win, dir) {
       // 4) Füllen: Rechteck-Rahmen zeichnen und innen füllen
       await js(`T.P.app.tools.set('shapes'); Object.assign(T.P.app.opts.shapes, { type: 'rect', width: 1, pixel: true, fill: 'none', stroke: true }); T.P.app.setColor('primary', { r: 0, g: 128, b: 0, a: 255 }); T.drag([[20, 30], [30, 34], [40, 40]]); T.P.app.tools.applyFloat(); 1`);
       p = await js(`[T.px(20, 30), T.px(30, 30), T.px(30, 35), T.px(19, 30)]`);
-      check('Rechteck pixel-genau', p[0][1] === 128 && p[0][3] === 255 && p[1][3] === 255 && p[2][3] === 0 && p[3][3] === 0, JSON.stringify(p));
+      check('Rechteck pixel-genau', near(p[0][1], 128) && p[0][3] === 255 && p[1][3] === 255 && p[2][3] === 0 && p[3][3] === 0, JSON.stringify(p));
       await js(`T.P.app.tools.set('fill'); T.P.app.opts.fill.tolerance = 0; T.P.app.setColor('primary', { r: 255, g: 200, b: 0, a: 255 }); T.ev('pointerdown', 30.5, 35.5); T.ev('pointerup', 30.5, 35.5); 1`);
       p = await js(`[T.px(30, 35), T.px(45, 35)]`);
       check('Füllen bleibt im Rahmen', p[0][0] === 255 && p[0][1] === 200 && p[1][3] === 0, JSON.stringify(p));
@@ -115,7 +119,7 @@ module.exports = function selftest(win, dir) {
       check('Auswahl', p && p.w === 21 && p.h === 11, JSON.stringify(p));
       await js(`T.drag([[30, 35], [30, 40], [30, 45]]); T.P.app.tools.applyFloat(); 1`);
       p = await js(`[T.px(30, 45), T.px(30, 35), T.px(20, 40)]`);
-      check('Inhalt verschoben', p[0][1] === 200 && p[1][3] === 0 && p[2][1] === 128, JSON.stringify(p));
+      check('Inhalt verschoben', p[0][1] === 200 && p[1][3] === 0 && near(p[2][1], 128), JSON.stringify(p));
 
       // 9) Text
       await js(`T.P.app.doc.selection = null; T.P.app.tools.set('text'); Object.assign(T.P.app.opts.text, { size: 12, pixel: true, font: 'Arial', bold: true }); T.P.app.setColor('primary', { r: 0, g: 0, b: 0, a: 255 }); T.ev('pointerdown', 2, 6); T.ev('pointerup', 2, 6); 1`);
