@@ -6,8 +6,8 @@ ERGEBNIS CLOUD-SESSION picline-icon
 
 2. Branch, Commits, PR, Release, CI
 - Branch: claude/friendly-curie-921fky
-- Commits: d971eb2 (1.2.1 Hauptänderung), e006f92 (Selbsttest: relativer Ordner, Zeitlimit), 1059f59 (Selbsttest: Cmd auf Mac, Farbtoleranz Windows)
-- PR: siehe PR-Link in der Antwort der Cloud-Session (erqf1/picline, Branch -> main)
+- Commits: d971eb2 (1.2.1 Hauptänderung), e006f92 (Selbsttest: relativer Ordner, Zeitlimit), 1059f59 (Selbsttest: Cmd auf Mac, Farbtoleranz Windows), 9c62b69 + letzter Commit (dieser Bericht)
+- PR: https://github.com/erqf1/picline/pull/1 (nach main)
 - Release-Tag: keiner (v1.2.1 noch anlegen, siehe Punkt 5)
 - CI (neuer Workflow "Test", Run 44599204461 auf 1059f59): alle 4 Jobs grün - Selbsttest Windows, Linux, macOS + Installer-Test Windows. Release-Workflow nicht gelaufen (kein Tag).
 
